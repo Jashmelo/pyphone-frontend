@@ -81,7 +81,7 @@ const NeuralBackground = ({ theme = 'neural' }) => {
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
 
-    }, []);
+    }, [theme]);
 
     return <canvas ref={canvasRef} className="fixed inset-0 -z-10" />;
 };

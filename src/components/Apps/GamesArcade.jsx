@@ -23,7 +23,7 @@ const GamesArcade = () => {
 
     return (
         <div className="p-8 grid grid-cols-3 gap-6">
-            <GameCard title="Chess Sandbox" onClick={() => setGame('chess')} color="bg-orange-600" />
+            <GameCard title="Neural Chess AI" onClick={() => setGame('chess')} color="bg-indigo-900" />
             <GameCard title="Hangman" onClick={() => setGame('hangman')} color="bg-gray-600" />
             <GameCard title="Rock Paper Scissors" onClick={() => setGame('rps')} color="bg-blue-600" />
             <GameCard title="Quick Math" onClick={() => setGame('math')} color="bg-green-600" />
