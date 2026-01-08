@@ -5,6 +5,7 @@ const OSContext = createContext();
 
 export const OSProvider = ({ children }) => {
     const [user, setUser] = useState(null); // { username, settings }
+    const [trueAdmin, setTrueAdmin] = useState(sessionStorage.getItem('true_admin')); // Tracks if the original user was admin
     const [isLocked, setIsLocked] = useState(true);
     const [apps, setApps] = useState([]); // Running app instances { id, appId, zIndex, minimized }
     const [activeApp, setActiveApp] = useState(null);
@@ -59,14 +60,31 @@ export const OSProvider = ({ children }) => {
     };
 
     const impersonate = (username) => {
+        if (user?.username === 'admin') {
+            sessionStorage.setItem('true_admin', 'admin');
+            setTrueAdmin('admin');
+        }
+
         const userData = {
             username,
-            settings: { clock_24h: true, wallpaper: 'neural' }
+            settings: user?.settings || { clock_24h: true, wallpaper: 'neural' }
         };
         setUser(userData);
         setIsLocked(false);
         setApps([]); // Clear admin apps
         localStorage.setItem('pyphone_user', JSON.stringify(userData));
+    };
+
+    const stopImpersonation = () => {
+        const originalAdmin = {
+            username: 'admin',
+            settings: { clock_24h: true, wallpaper: 'neural' }
+        };
+        setUser(originalAdmin);
+        setTrueAdmin(null);
+        sessionStorage.removeItem('true_admin');
+        setApps([]);
+        localStorage.setItem('pyphone_user', JSON.stringify(originalAdmin));
     };
 
     const deleteAccount = async () => {
@@ -107,6 +125,8 @@ export const OSProvider = ({ children }) => {
 
     const logout = () => {
         setUser(null);
+        setTrueAdmin(null);
+        sessionStorage.removeItem('true_admin');
         setIsLocked(true);
         setApps([]);
         localStorage.removeItem('pyphone_user');
@@ -130,8 +150,8 @@ export const OSProvider = ({ children }) => {
 
     return (
         <OSContext.Provider value={{
-            user, isLocked, apps, activeApp, formattedTime: formatTime(),
-            login, register, logout, impersonate, updateSettings, deleteAccount,
+            user, trueAdmin, isLocked, apps, activeApp, formattedTime: formatTime(),
+            login, register, logout, impersonate, stopImpersonation, updateSettings, deleteAccount,
             openApp, closeApp, focusApp
         }}>
             {children}

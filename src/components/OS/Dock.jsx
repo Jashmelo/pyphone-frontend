@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 const Dock = () => {
-    const { openApp, user } = useOS();
+    const { openApp, user, trueAdmin } = useOS();
 
     const apps = [
         { id: 'notes', icon: StickyNote, label: 'Notes', color: 'bg-yellow-500' },
@@ -20,7 +20,7 @@ const Dock = () => {
         { id: 'settings', icon: Settings, label: 'Settings', color: 'bg-indigo-500' },
     ];
 
-    if (user?.username === 'admin') {
+    if (user?.username === 'admin' || trueAdmin === 'admin') {
         apps.push({ id: 'admin', icon: ShieldAlert, label: 'System', color: 'bg-purple-600' });
     }
 

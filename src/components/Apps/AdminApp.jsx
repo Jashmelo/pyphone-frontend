@@ -222,6 +222,9 @@ const AppOversight = () => {
 const AdminApp = () => {
     const [view, setView] = useState('stats');
     const [stats, setStats] = useState(null);
+    const { user, trueAdmin, stopImpersonation } = useOS();
+
+    const isImpersonating = trueAdmin === 'admin' && user?.username !== 'admin';
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -252,6 +255,17 @@ const AdminApp = () => {
                     <span className="font-bold text-white tracking-widest text-sm">ADMIN CORE</span>
                 </div>
 
+                {isImpersonating && (
+                    <div className="p-4 bg-rose-500/10 border-b border-rose-500/20 animate-pulse">
+                        <button
+                            onClick={stopImpersonation}
+                            className="w-full bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black py-2 rounded shadow-lg transition-all"
+                        >
+                            RESTORE ADMIN SESSION
+                        </button>
+                    </div>
+                )}
+
                 <nav className="flex-1 p-4 space-y-1">
                     {menuItems.map(item => (
                         <button
@@ -270,8 +284,8 @@ const AdminApp = () => {
 
                 <div className="p-4 border-t border-indigo-500/20 text-[10px] opacity-40 leading-tight">
                     PYPHONE KERNEL ACCESS<br />
-                    SESSION: ENCRYPTED-RSA<br />
-                    LEVEL: 1 (ROOT)
+                    CONTROLLING: @{user?.username}<br />
+                    SESSION: ENCRYPTED-RSA
                 </div>
             </div>
 
