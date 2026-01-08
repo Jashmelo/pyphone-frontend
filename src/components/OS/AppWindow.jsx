@@ -7,6 +7,7 @@ import GamesArcade from '../Apps/GamesArcade';
 import MessagesApp from '../Apps/MessagesApp';
 import UtilitiesApp from '../Apps/UtilitiesApp';
 import SettingsApp from '../Apps/SettingsApp';
+import FriendsApp from '../Apps/FriendsApp';
 
 const AppWindow = ({ app }) => {
     const { closeApp, focusApp, activeApp } = useOS();
@@ -20,6 +21,7 @@ const AppWindow = ({ app }) => {
             case 'messages': return <MessagesApp />;
             case 'utils': return <UtilitiesApp />;
             case 'settings': return <SettingsApp />;
+            case 'friends': return <FriendsApp />;
             default:
                 return (
                     <div className="p-8 text-white text-center">

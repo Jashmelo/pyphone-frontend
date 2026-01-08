@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Cloud, Calculator, Binary, Code } from 'lucide-react';
 
 const CalculatorApp = () => {
     const [display, setDisplay] = useState('');
 
-    // Simple eval
     const calc = () => {
         try {
-            // Support tetration x,y
             if (display.includes(',')) {
                 const [b, h] = display.split(',').map(Number);
                 if (!isNaN(b) && !isNaN(h)) {
@@ -17,8 +15,9 @@ const CalculatorApp = () => {
                     return;
                 }
             }
-            // eslint-disable-next-line no-eval
-            setDisplay(String(eval(display)));
+            // eslint-disable-next-line no-new-func
+            const result = new Function(`return ${display}`)();
+            setDisplay(String(result));
         } catch {
             setDisplay('Error');
         }
@@ -38,6 +37,7 @@ const CalculatorApp = () => {
         </div>
     );
 };
+
 const Btn = ({ v, onClick, color }) => <button onClick={onClick} className={`${color} h-16 rounded-full text-2xl font-medium active:opacity-70 transition-opacity`}>{v}</button>;
 
 const ConverterApp = () => {
@@ -77,13 +77,60 @@ const ConverterApp = () => {
     );
 };
 
-// Main Utilities Container
+const WeatherApp = () => {
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetch('https://api.open-meteo.com/v1/forecast?latitude=51.5074&longitude=-0.1278&current_weather=true')
+            .then(res => res.json())
+            .then(json => {
+                setData(json.current_weather);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error("Weather error", err);
+                setLoading(false);
+            });
+    }, []);
+
+    const getCondition = (code) => {
+        if (code === 0) return 'Clear';
+        if (code <= 3) return 'Partly Cloudy';
+        if (code <= 48) return 'Foggy';
+        if (code <= 67) return 'Rainy';
+        if (code <= 77) return 'Snowy';
+        return 'Stormy';
+    };
+
+    if (loading) return <div className="h-full flex items-center justify-center text-white">Loading Weather...</div>;
+    if (!data) return <div className="h-full flex items-center justify-center text-red-400">Weather Unavailable</div>;
+
+    return (
+        <div className="h-full flex flex-col items-center justify-center text-white bg-gradient-to-b from-sky-500 to-indigo-600 p-8">
+            <h2 className="text-2xl font-bold mb-2">London</h2>
+            <p className="text-8xl font-thin mb-4">{Math.round(data.temperature)}°</p>
+            <p className="text-xl opacity-80">{getCondition(data.weathercode)}</p>
+            <div className="mt-8 flex gap-8 opacity-60">
+                <div className="text-center">
+                    <p className="text-xs">WIND</p>
+                    <p className="font-bold">{data.windspeed} km/h</p>
+                </div>
+                <div className="text-center">
+                    <p className="text-xs">DIRECTION</p>
+                    <p className="font-bold">{data.winddirection}°</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const UtilitiesApp = () => {
     const [view, setView] = useState('menu');
 
     if (view === 'calc') return <div className="h-full"><Back setView={setView} /><CalculatorApp /></div>;
     if (view === 'conv') return <div className="h-full"><Back setView={setView} /><ConverterApp /></div>;
-    if (view === 'weather') return <div className="h-full flex items-center justify-center text-white text-xl"><Back setView={setView} />Mock Weather: Sunny 25°C</div>;
+    if (view === 'weather') return <div className="h-full"><Back setView={setView} /><WeatherApp /></div>;
 
     return (
         <div className="p-8 grid grid-cols-2 gap-6 h-full content-start">

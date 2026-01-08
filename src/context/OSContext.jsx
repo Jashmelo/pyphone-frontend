@@ -14,10 +14,8 @@ export const OSProvider = ({ children }) => {
         const saved = localStorage.getItem('pyphone_user');
         if (saved) {
             setUser(JSON.parse(saved));
-            setIsLocked(true);
-        } else {
-            setIsLocked(false); // Setup mode? Or just lockscreen with Register option
         }
+        setIsLocked(true);
     }, []);
 
     const login = async (username, password) => {

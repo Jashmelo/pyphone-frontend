@@ -1,7 +1,24 @@
-import React, { useState } from 'react';
+import { useOS } from '../../context/OSContext';
+import { endpoints } from '../../config';
 
 const SettingsApp = () => {
-    const [clock24, setClock24] = useState(true);
+    const { user, setUser } = useOS();
+    const [clock24, setClock24] = useState(user?.settings?.clock_24h ?? true);
+
+    const toggleClock = async () => {
+        const newValue = !clock24;
+        setClock24(newValue);
+
+        // Update local state and optionally sync to backend
+        if (user?.username) {
+            const updatedUser = { ...user, settings: { ...user.settings, clock_24h: newValue } };
+            setUser(updatedUser);
+            localStorage.setItem('pyphone_user', JSON.stringify(updatedUser));
+
+            // In a full implementation, we'd have a /api/settings endpoint
+            // For now, we'll keep it in local storage + sync during login
+        }
+    };
 
     return (
         <div className="h-full bg-[#1c1c1e] text-white p-6">
@@ -12,7 +29,7 @@ const SettingsApp = () => {
                     <div className="p-4 border-b border-white/5 flex justify-between items-center">
                         <span>24-Hour Clock</span>
                         <div
-                            onClick={() => setClock24(!clock24)}
+                            onClick={toggleClock}
                             className={`w-12 h-7 rounded-full p-1 cursor-pointer transition-colors ${clock24 ? 'bg-green-500' : 'bg-gray-600'}`}
                         >
                             <div className={`w-5 h-5 bg-white rounded-full transition-transform ${clock24 ? 'translate-x-5' : 'translate-x-0'}`} />
@@ -25,7 +42,8 @@ const SettingsApp = () => {
                 </div>
 
                 <div className="text-center text-gray-500 text-sm mt-8">
-                    PyPhone Web OS v1.0.0
+                    PyPhone Web OS v1.0.0<br />
+                    Connected to: {user?.username || 'Guest'}
                 </div>
             </div>
         </div>
