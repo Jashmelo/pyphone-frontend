@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import ChessGame from './ChessGame';
 import HangmanGame from './HangmanGame';
 

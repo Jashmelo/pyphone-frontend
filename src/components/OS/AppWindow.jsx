@@ -8,6 +8,7 @@ import MessagesApp from '../Apps/MessagesApp';
 import UtilitiesApp from '../Apps/UtilitiesApp';
 import SettingsApp from '../Apps/SettingsApp';
 import FriendsApp from '../Apps/FriendsApp';
+import AdminApp from '../Apps/AdminApp';
 
 const AppWindow = ({ app }) => {
     const { closeApp, focusApp, activeApp } = useOS();
@@ -22,6 +23,7 @@ const AppWindow = ({ app }) => {
             case 'utils': return <UtilitiesApp />;
             case 'settings': return <SettingsApp />;
             case 'friends': return <FriendsApp />;
+            case 'admin': return <AdminApp />;
             default:
                 return (
                     <div className="p-8 text-white text-center">
@@ -39,7 +41,8 @@ const AppWindow = ({ app }) => {
         'games': 'Games Arcade',
         'utils': 'Utilities',
         'browser': 'Browser',
-        'settings': 'Settings'
+        'settings': 'Settings',
+        'admin': 'System Monitor'
     };
 
     return (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Cloud, Calculator, Binary, Code } from 'lucide-react';
+import { Cloud, Calculator, Binary, Code, Search } from 'lucide-react';
 
 const CalculatorApp = () => {
     const [display, setDisplay] = useState('');
@@ -80,18 +80,42 @@ const ConverterApp = () => {
 const WeatherApp = () => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [location, setLocation] = useState('London');
+    const [search, setSearch] = useState('');
+
+    const fetchWeather = async (lat, lon, name) => {
+        setLoading(true);
+        try {
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+            const json = await res.json();
+            setData(json.current_weather);
+            setLocation(name);
+            setLoading(false);
+        } catch (err) {
+            console.error("Weather error", err);
+            setLoading(false);
+        }
+    };
+
+    const handleSearch = async (e) => {
+        e.preventDefault();
+        if (!search.trim()) return;
+        try {
+            const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${search}&count=1&language=en&format=json`);
+            const json = await res.json();
+            if (json.results && json.results.length > 0) {
+                const city = json.results[0];
+                fetchWeather(city.latitude, city.longitude, city.name);
+            } else {
+                alert("Location not found");
+            }
+        } catch (err) {
+            console.error("Geocoding error", err);
+        }
+    };
 
     useEffect(() => {
-        fetch('https://api.open-meteo.com/v1/forecast?latitude=51.5074&longitude=-0.1278&current_weather=true')
-            .then(res => res.json())
-            .then(json => {
-                setData(json.current_weather);
-                setLoading(false);
-            })
-            .catch(err => {
-                console.error("Weather error", err);
-                setLoading(false);
-            });
+        fetchWeather(51.5074, -0.1278, 'London');
     }, []);
 
     const getCondition = (code) => {
@@ -103,24 +127,42 @@ const WeatherApp = () => {
         return 'Stormy';
     };
 
-    if (loading) return <div className="h-full flex items-center justify-center text-white">Loading Weather...</div>;
-    if (!data) return <div className="h-full flex items-center justify-center text-red-400">Weather Unavailable</div>;
-
     return (
-        <div className="h-full flex flex-col items-center justify-center text-white bg-gradient-to-b from-sky-500 to-indigo-600 p-8">
-            <h2 className="text-2xl font-bold mb-2">London</h2>
-            <p className="text-8xl font-thin mb-4">{Math.round(data.temperature)}°</p>
-            <p className="text-xl opacity-80">{getCondition(data.weathercode)}</p>
-            <div className="mt-8 flex gap-8 opacity-60">
-                <div className="text-center">
-                    <p className="text-xs">WIND</p>
-                    <p className="font-bold">{data.windspeed} km/h</p>
+        <div className="h-full flex flex-col text-white bg-gradient-to-b from-sky-500 to-indigo-600">
+            {/* Search Bar */}
+            <form onSubmit={handleSearch} className="p-4 flex gap-2 bg-black/10 backdrop-blur-sm">
+                <input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search city..."
+                    className="flex-1 bg-white/20 border border-white/30 rounded-full px-4 py-1.5 focus:outline-none placeholder-white/50 text-sm"
+                />
+                <button type="submit" className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                    <Search size={18} />
+                </button>
+            </form>
+
+            {loading ? (
+                <div className="flex-1 flex items-center justify-center">Loading Weather...</div>
+            ) : data ? (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 animate-in fade-in duration-500">
+                    <h2 className="text-3xl font-bold mb-2">{location}</h2>
+                    <p className="text-8xl font-thin mb-4">{Math.round(data.temperature)}°</p>
+                    <p className="text-xl opacity-80">{getCondition(data.weathercode)}</p>
+                    <div className="mt-8 flex gap-8 opacity-60">
+                        <div className="text-center">
+                            <p className="text-xs">WIND</p>
+                            <p className="font-bold">{data.windspeed} km/h</p>
+                        </div>
+                        <div className="text-center">
+                            <p className="text-xs">DIRECTION</p>
+                            <p className="font-bold">{data.winddirection}°</p>
+                        </div>
+                    </div>
                 </div>
-                <div className="text-center">
-                    <p className="text-xs">DIRECTION</p>
-                    <p className="font-bold">{data.winddirection}°</p>
-                </div>
-            </div>
+            ) : (
+                <div className="flex-1 flex items-center justify-center text-red-200">Weather Unavailable</div>
+            )}
         </div>
     );
 };

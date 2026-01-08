@@ -3,11 +3,11 @@ import { useOS } from '../../context/OSContext';
 import { motion } from 'framer-motion';
 import {
     StickyNote, MessageSquare, Users,
-    Gamepad2, Wrench, Settings, Search, Globe
+    Gamepad2, Wrench, Settings, Search, Globe, ShieldAlert
 } from 'lucide-react';
 
 const Dock = () => {
-    const { openApp } = useOS();
+    const { openApp, user } = useOS();
 
     const apps = [
         { id: 'notes', icon: StickyNote, label: 'Notes', color: 'bg-yellow-500' },
@@ -17,6 +17,10 @@ const Dock = () => {
         { id: 'utils', icon: Wrench, label: 'Utilities', color: 'bg-gray-500' },
         { id: 'settings', icon: Settings, label: 'Settings', color: 'bg-indigo-500' },
     ];
+
+    if (user?.username === 'admin') {
+        apps.push({ id: 'admin', icon: ShieldAlert, label: 'System', color: 'bg-purple-600' });
+    }
 
     return (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2">

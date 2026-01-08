@@ -9,5 +9,10 @@ export const endpoints = {
     friends: (username) => `${API_BASE_URL}/api/friends/${username}`,
     friendRequest: `${API_BASE_URL}/api/friends/request`,
     acceptFriend: `${API_BASE_URL}/api/friends/accept`,
+    adminStats: `${API_BASE_URL}/api/admin/stats`,
+    adminFeedback: `${API_BASE_URL}/api/admin/feedback`,
+    adminUsers: `${API_BASE_URL}/api/admin/users`,
+    adminApps: `${API_BASE_URL}/api/admin/apps`,
+    adminAppVisibility: `${API_BASE_URL}/api/admin/apps/visibility`,
     apps: (username) => `${API_BASE_URL}/api/apps/${username}`,
 };
