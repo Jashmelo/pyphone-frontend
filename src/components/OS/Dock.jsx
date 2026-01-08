@@ -3,7 +3,7 @@ import { useOS } from '../../context/OSContext';
 import { motion } from 'framer-motion';
 import {
     StickyNote, MessageSquare, Users,
-    Gamepad2, Wrench, Settings, Search, Globe, ShieldAlert, Code2
+    Gamepad2, Wrench, Settings, Search, Globe, ShieldAlert, Code2, Cpu
 } from 'lucide-react';
 
 const Dock = () => {
@@ -15,6 +15,7 @@ const Dock = () => {
         { id: 'friends', icon: Users, label: 'Friends', color: 'bg-blue-500' },
         { id: 'games', icon: Gamepad2, label: 'Games', color: 'bg-red-500' },
         { id: 'utils', icon: Wrench, label: 'Utilities', color: 'bg-gray-500' },
+        { id: 'nexus', icon: Cpu, label: 'Nexus AI', color: 'bg-cyan-500' },
         { id: 'studio', icon: Code2, label: 'Studio', color: 'bg-slate-800' },
         { id: 'settings', icon: Settings, label: 'Settings', color: 'bg-indigo-500' },
     ];

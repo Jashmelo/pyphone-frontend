@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Code2, Play, Save, Globe, Lock, CheckCircle2, AlertCircle, Terminal, Languages } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Code2, Play, Save, Globe, Lock, CheckCircle2, AlertCircle, Terminal, Languages, Bot, Sparkles, Send, X, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useOS } from '../../context/OSContext';
 import { endpoints } from '../../config';
 
@@ -12,6 +12,13 @@ const DevStudio = () => {
     const [preview, setPreview] = useState(null);
     const [status, setStatus] = useState(''); // success, error, saving
 
+    // AI State
+    const [aiOpen, setAiOpen] = useState(false);
+    const [aiInput, setAiInput] = useState('');
+    const [aiChat, setAiChat] = useState([]);
+    const [aiLoading, setAiLoading] = useState(false);
+    const aiScrollRef = useRef(null);
+
     const languages = [
         { id: 'javascript', name: 'JavaScript', ext: 'js', default: '// Write your JS app\nconst content = `<div style="padding:20px"><h1>Hello JS</h1></div>`;\nsetContent(content);' },
         { id: 'python', name: 'Python', ext: 'py', default: '# Simulation Mode\nprint("Hello from PyPhone OS")\n# Web UI rendering via set_content()\nset_content("<h1>Python App</h1>")' },
@@ -21,8 +28,19 @@ const DevStudio = () => {
 
     useEffect(() => {
         const lang = languages.find(l => l.id === language);
-        if (lang) setCode(lang.default);
+        if (lang) {
+            // Only set if code is empty or just default of another lang
+            if (!code || languages.some(l => l.default === code)) {
+                setCode(lang.default);
+            }
+        }
     }, [language]);
+
+    useEffect(() => {
+        if (aiScrollRef.current) {
+            aiScrollRef.current.scrollTop = aiScrollRef.current.scrollHeight;
+        }
+    }, [aiChat]);
 
     const runCode = () => {
         try {
@@ -38,7 +56,6 @@ const DevStudio = () => {
                 };
                 setPreview(sandbox(code));
             } else {
-                // Simulation for non-JS
                 setPreview(`
                     <div style="background: #000; color: #0f0; font-family: monospace; padding: 20px; min-height: 200px;">
                         <div>$ ${language} run main.${languages.find(l => l.id === language).ext}</div>
@@ -86,19 +103,45 @@ const DevStudio = () => {
         }
     };
 
+    const askAI = async () => {
+        if (!aiInput.trim() || aiLoading) return;
+
+        const userMsg = { role: 'user', content: aiInput };
+        setAiChat(prev => [...prev, userMsg]);
+        setAiInput('');
+        setAiLoading(true);
+
+        try {
+            const res = await fetch(endpoints.aiStudio, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: aiInput,
+                    context: `[LANG:${language}]\n${code}`
+                })
+            });
+            const data = await res.json();
+            setAiChat(prev => [...prev, { role: 'ai', content: data.response }]);
+        } catch (err) {
+            setAiChat(prev => [...prev, { role: 'ai', content: "Failed to connect to Studio AI. Please check server status." }]);
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
     return (
         <div className="h-full flex flex-col bg-[#0f172a] text-slate-200 overflow-hidden">
             {/* Toolbar */}
-            <div className="h-14 border-b border-slate-700 bg-slate-900/50 flex items-center justify-between px-6">
+            <div className="h-14 border-b border-slate-700 bg-slate-900/50 flex items-center justify-between px-6 shrink-0">
                 <div className="flex items-center gap-4 flex-1">
                     <div className="flex items-center gap-2 text-indigo-400 font-bold mr-4">
                         <Code2 size={20} />
-                        <span className="hidden md:inline">DEV STUDIO</span>
+                        <span className="hidden md:inline uppercase tracking-tighter">DEV Studio</span>
                     </div>
                     <input
                         value={appName}
                         onChange={e => setAppName(e.target.value)}
-                        placeholder="App Name..."
+                        placeholder="Project Name..."
                         className="bg-slate-800 border border-slate-700 rounded px-3 py-1 text-sm focus:outline-none focus:ring-1 ring-indigo-500 w-44"
                     />
 
@@ -120,11 +163,20 @@ const DevStudio = () => {
                         {isPublic ? <Globe size={12} /> : <Lock size={12} />}
                         {isPublic ? 'PUBLIC REQ' : 'PRIVATE'}
                     </button>
+
+                    <div className="w-[1px] h-6 bg-slate-700 mx-2" />
+
+                    <button
+                        onClick={() => setAiOpen(!aiOpen)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${aiOpen ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/50' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                    >
+                        <Bot size={16} /> Studio AI
+                    </button>
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {status === 'success' && <CheckCircle2 size={18} className="text-emerald-500 animate-in fade-in" />}
-                    {status === 'error' && <AlertCircle size={18} className="text-rose-500 animate-in shake" />}
+                    {status === 'success' && <CheckCircle2 size={18} className="text-emerald-500" />}
+                    {status === 'error' && <AlertCircle size={18} className="text-rose-500" />}
 
                     <button
                         onClick={runCode}
@@ -134,7 +186,7 @@ const DevStudio = () => {
                     </button>
                     <button
                         onClick={publishApp}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-1.5 rounded-lg text-sm transition-all active:scale-95"
+                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-1.5 rounded-lg text-sm transition-all active:scale-95 shadow-lg shadow-indigo-600/20"
                     >
                         <Save size={16} /> {status === 'saving' ? '...' : 'Publish'}
                     </button>
@@ -144,7 +196,7 @@ const DevStudio = () => {
             {/* Editor Area */}
             <div className="flex-1 flex overflow-hidden">
                 {/* Code Editor */}
-                <div className="w-1/2 border-r border-slate-700 flex flex-col">
+                <div className={`flex-1 border-r border-slate-700 flex flex-col transition-all duration-300 ${aiOpen ? 'w-1/3' : 'w-1/2'}`}>
                     <div className="bg-slate-900 px-4 py-1 text-[10px] text-slate-500 font-mono flex justify-between border-b border-slate-800">
                         <span>source_main.{languages.find(l => l.id === language).ext}</span>
                         <span className="text-indigo-500 uppercase">{language}</span>
@@ -157,10 +209,10 @@ const DevStudio = () => {
                     />
                 </div>
 
-                {/* Preview Window */}
-                <div className="w-1/2 bg-slate-900/40 flex flex-col">
+                {/* Preview Window (Visible when AI is closed or adjusted) */}
+                <div className={`flex flex-col bg-slate-900/40 transition-all duration-300 ${aiOpen ? 'w-1/3 border-r border-slate-700' : 'w-1/2'}`}>
                     <div className="bg-slate-900 px-4 py-1 text-[10px] text-slate-500 font-mono border-b border-slate-800 flex justify-between">
-                        <span>Output Preview</span>
+                        <span>Live Preview</span>
                         <Terminal size={12} />
                     </div>
                     <div className="flex-1 bg-white dark:bg-slate-950 rounded-lg m-4 shadow-2xl overflow-auto border border-slate-800">
@@ -170,11 +222,57 @@ const DevStudio = () => {
                             <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center bg-slate-950">
                                 <Code2 size={64} className="mb-6 opacity-10" />
                                 <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Compiler Ready</p>
-                                <p className="text-[10px] mt-2 text-slate-600 max-w-[240px]">Select a language and write your code to see results here.</p>
+                                <p className="text-[10px] mt-2 text-slate-600 max-w-[240px]">Write code and click 'Run' to compile and preview.</p>
                             </div>
                         )}
                     </div>
                 </div>
+
+                {/* AI Assistant Panel */}
+                {aiOpen && (
+                    <div className="w-1/3 bg-slate-900/60 flex flex-col animate-in slide-in-from-right duration-300">
+                        <div className="bg-indigo-950/30 px-4 py-2 text-[10px] text-indigo-400 font-bold border-b border-indigo-500/20 flex justify-between items-center bg-gradient-to-r from-indigo-900/20 to-transparent">
+                            <span className="flex items-center gap-2"><Bot size={14} /> STUDIO ASSISTANT</span>
+                            <button onClick={() => setAiOpen(false)}><X size={14} /></button>
+                        </div>
+
+                        <div ref={aiScrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+                            {aiChat.length === 0 && (
+                                <div className="text-center py-10 opacity-30">
+                                    <Sparkles size={32} className="mx-auto mb-4" />
+                                    <p className="text-xs">Ask me to write functions, fix bugs, or explain code concepts.</p>
+                                </div>
+                            )}
+                            {aiChat.map((msg, idx) => (
+                                <div key={idx} className={`flex ${msg.role === 'ai' ? 'justify-start' : 'justify-end'}`}>
+                                    <div className={`p-3 rounded-2xl text-xs leading-relaxed max-w-[90%] ${msg.role === 'ai' ? 'bg-indigo-900/40 text-indigo-100 rounded-tl-none border border-indigo-500/20 shadow-lg shadow-indigo-500/5' : 'bg-slate-800 text-white rounded-tr-none'}`}>
+                                        {msg.content}
+                                    </div>
+                                </div>
+                            ))}
+                            {aiLoading && <div className="text-indigo-500 animate-pulse text-[10px] font-bold">Bot is analyzing current context...</div>}
+                        </div>
+
+                        <div className="p-4 border-t border-slate-700 bg-slate-950/50">
+                            <div className="bg-slate-900 border border-slate-700 rounded-xl p-2 flex gap-2 ring-1 ring-indigo-500/20">
+                                <input
+                                    value={aiInput}
+                                    onChange={e => setAiInput(e.target.value)}
+                                    onKeyPress={e => e.key === 'Enter' && askAI()}
+                                    placeholder="Fix this loop..."
+                                    className="flex-1 bg-transparent border-none focus:ring-0 text-xs text-white px-2"
+                                />
+                                <button
+                                    onClick={askAI}
+                                    disabled={!aiInput.trim() || aiLoading}
+                                    className="bg-indigo-600 hover:bg-indigo-500 p-2 rounded-lg text-white disabled:opacity-30 transition-all active:scale-95"
+                                >
+                                    <Send size={14} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Footer */}
@@ -182,6 +280,7 @@ const DevStudio = () => {
                 <div className="flex gap-4">
                     <span>OS_ENV: PRODUCTION</span>
                     <span className="text-indigo-500/50">MEM: 124MB</span>
+                    {aiOpen && <span className="text-emerald-500 animate-pulse">● AI_LINK: CONNECTED</span>}
                 </div>
                 <span>CONNECTED: @{user?.username}</span>
             </div>

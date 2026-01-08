@@ -10,6 +10,7 @@ import SettingsApp from '../Apps/SettingsApp';
 import FriendsApp from '../Apps/FriendsApp';
 import AdminApp from '../Apps/AdminApp';
 import DevStudio from '../Apps/DevStudio';
+import NexusAI from '../Apps/NexusAI';
 
 const AppWindow = ({ app }) => {
     const { closeApp, focusApp, activeApp } = useOS();
@@ -26,6 +27,7 @@ const AppWindow = ({ app }) => {
             case 'friends': return <FriendsApp />;
             case 'admin': return <AdminApp />;
             case 'studio': return <DevStudio />;
+            case 'nexus': return <NexusAI />;
             default:
                 return (
                     <div className="p-8 text-white text-center">
@@ -45,7 +47,8 @@ const AppWindow = ({ app }) => {
         'browser': 'Browser',
         'settings': 'Settings',
         'admin': 'System Monitor',
-        'studio': 'Dev Studio'
+        'studio': 'Dev Studio',
+        'nexus': 'Nexus AI'
     };
 
     return (
