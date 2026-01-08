@@ -7,14 +7,14 @@ import AppWindow from './components/OS/AppWindow';
 import { AnimatePresence } from 'framer-motion';
 
 const Desktop = () => {
-    const { apps } = useOS();
+    const { apps, formattedTime } = useOS();
 
     return (
         <div className="relative h-screen w-screen overflow-hidden">
             {/* Status Bar (Simplistic) */}
             <div className="absolute top-0 w-full h-8 bg-black/20 backdrop-blur-sm flex justify-between items-center px-4 text-white text-xs z-40">
                 <span>PyPhone Web OS</span>
-                <span>{new Date().toLocaleTimeString()}</span>
+                <span>{formattedTime}</span>
             </div>
 
             <div className="relative z-0 h-full w-full">

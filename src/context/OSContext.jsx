@@ -8,6 +8,7 @@ export const OSProvider = ({ children }) => {
     const [isLocked, setIsLocked] = useState(true);
     const [apps, setApps] = useState([]); // Running app instances { id, appId, zIndex, minimized }
     const [activeApp, setActiveApp] = useState(null);
+    const [time, setTime] = useState(new Date());
 
     // Load user from local storage
     useEffect(() => {
@@ -16,7 +17,20 @@ export const OSProvider = ({ children }) => {
             setUser(JSON.parse(saved));
         }
         setIsLocked(true);
+
+        const timer = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(timer);
     }, []);
+
+    const formatTime = () => {
+        const is24 = user?.settings?.clock_24h ?? true;
+        return time.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: !is24
+        });
+    };
 
     const login = async (username, password) => {
         try {
@@ -28,9 +42,13 @@ export const OSProvider = ({ children }) => {
             const data = await response.json();
 
             if (response.ok) {
-                setUser({ username: data.username });
+                const userData = {
+                    username: data.username,
+                    settings: { clock_24h: true }
+                };
+                setUser(userData);
                 setIsLocked(false);
-                localStorage.setItem('pyphone_user', JSON.stringify({ username: data.username }));
+                localStorage.setItem('pyphone_user', JSON.stringify(userData));
                 return true;
             }
             return false;
@@ -38,6 +56,23 @@ export const OSProvider = ({ children }) => {
             console.error("Login Error:", error);
             return false;
         }
+    };
+
+    const impersonate = (username) => {
+        const userData = {
+            username,
+            settings: { clock_24h: true }
+        };
+        setUser(userData);
+        setIsLocked(false);
+        setApps([]); // Clear admin apps
+        localStorage.setItem('pyphone_user', JSON.stringify(userData));
+    };
+
+    const updateSettings = (newSettings) => {
+        const updated = { ...user, settings: { ...user.settings, ...newSettings } };
+        setUser(updated);
+        localStorage.setItem('pyphone_user', JSON.stringify(updated));
     };
 
     const register = async (username, password, confirmPassword) => {
@@ -48,7 +83,7 @@ export const OSProvider = ({ children }) => {
                 body: JSON.stringify({
                     username,
                     password,
-                    confirm_password: confirmPassword || password // Handle default UI which might not have confirm
+                    confirm_password: confirmPassword || password
                 }),
             });
 
@@ -66,6 +101,7 @@ export const OSProvider = ({ children }) => {
         setUser(null);
         setIsLocked(true);
         setApps([]);
+        localStorage.removeItem('pyphone_user');
     };
 
     const openApp = (appId) => {
@@ -82,13 +118,12 @@ export const OSProvider = ({ children }) => {
 
     const focusApp = (id) => {
         setActiveApp(id);
-        // Bring to front logic could be added here
     };
 
     return (
         <OSContext.Provider value={{
-            user, isLocked, apps, activeApp,
-            login, register, logout,
+            user, isLocked, apps, activeApp, formattedTime: formatTime(),
+            login, register, logout, impersonate, updateSettings,
             openApp, closeApp, focusApp
         }}>
             {children}

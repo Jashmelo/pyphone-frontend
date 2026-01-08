@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import {
     ShieldAlert, Users, MessageCircle, Activity,
     Inbox, Trash2, ShieldCheck, ShieldX,
-    ChevronRight, BarChart3, AppWindow
+    ChevronRight, BarChart3, AppWindow, UserCheck
 } from 'lucide-react';
 import { endpoints } from '../../config';
+import { useOS } from '../../context/OSContext';
 
 // Sub-component: Stats Dashboard
 const StatsDashboard = ({ stats }) => (
@@ -46,6 +47,7 @@ const StatsDashboard = ({ stats }) => (
 const UserManager = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const { impersonate } = useOS();
 
     const fetchUsers = async () => {
         try {
@@ -89,11 +91,19 @@ const UserManager = () => {
                                         {u.is_admin ? 'Admin' : 'User'}
                                     </span>
                                 </td>
-                                <td className="p-4 text-right">
+                                <td className="p-4 text-right space-x-2">
                                     {u.username !== 'admin' && (
-                                        <button onClick={() => deleteUser(u.username)} className="text-red-400 hover:text-red-300 p-2">
-                                            <Trash2 size={16} />
-                                        </button>
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button
+                                                onClick={() => impersonate(u.username)}
+                                                className="text-indigo-400 hover:text-indigo-300 text-[10px] font-bold bg-indigo-500/10 px-3 py-1.5 rounded flex items-center gap-2 border border-indigo-500/20"
+                                            >
+                                                <UserCheck size={14} /> TAKE CONTROL
+                                            </button>
+                                            <button onClick={() => deleteUser(u.username)} className="text-red-400 hover:text-red-300 p-2">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
                                     )}
                                 </td>
                             </tr>
