@@ -9,6 +9,7 @@ import UtilitiesApp from '../Apps/UtilitiesApp';
 import SettingsApp from '../Apps/SettingsApp';
 import FriendsApp from '../Apps/FriendsApp';
 import AdminApp from '../Apps/AdminApp';
+import DevStudio from '../Apps/DevStudio';
 
 const AppWindow = ({ app }) => {
     const { closeApp, focusApp, activeApp } = useOS();
@@ -24,6 +25,7 @@ const AppWindow = ({ app }) => {
             case 'settings': return <SettingsApp />;
             case 'friends': return <FriendsApp />;
             case 'admin': return <AdminApp />;
+            case 'studio': return <DevStudio />;
             default:
                 return (
                     <div className="p-8 text-white text-center">
@@ -42,7 +44,8 @@ const AppWindow = ({ app }) => {
         'utils': 'Utilities',
         'browser': 'Browser',
         'settings': 'Settings',
-        'admin': 'System Monitor'
+        'admin': 'System Monitor',
+        'studio': 'Dev Studio'
     };
 
     return (
