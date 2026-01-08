@@ -44,7 +44,7 @@ export const OSProvider = ({ children }) => {
             if (response.ok) {
                 const userData = {
                     username: data.username,
-                    settings: { clock_24h: true }
+                    settings: { clock_24h: true, wallpaper: 'neural' }
                 };
                 setUser(userData);
                 setIsLocked(false);
@@ -61,12 +61,20 @@ export const OSProvider = ({ children }) => {
     const impersonate = (username) => {
         const userData = {
             username,
-            settings: { clock_24h: true }
+            settings: { clock_24h: true, wallpaper: 'neural' }
         };
         setUser(userData);
         setIsLocked(false);
         setApps([]); // Clear admin apps
         localStorage.setItem('pyphone_user', JSON.stringify(userData));
+    };
+
+    const deleteAccount = async () => {
+        if (!user?.username) return;
+        try {
+            await fetch(`${endpoints.adminUsers}/${user.username}`, { method: 'DELETE' });
+            logout();
+        } catch (err) { console.error("Deletion failed", err); }
     };
 
     const updateSettings = (newSettings) => {
@@ -123,7 +131,7 @@ export const OSProvider = ({ children }) => {
     return (
         <OSContext.Provider value={{
             user, isLocked, apps, activeApp, formattedTime: formatTime(),
-            login, register, logout, impersonate, updateSettings,
+            login, register, logout, impersonate, updateSettings, deleteAccount,
             openApp, closeApp, focusApp
         }}>
             {children}

@@ -31,11 +31,12 @@ const Desktop = () => {
 };
 
 const AppContent = () => {
-    const { isLocked } = useOS();
+    const { isLocked, user } = useOS();
+    const wallpaper = user?.settings?.wallpaper || 'neural';
 
     return (
         <>
-            <NeuralBackground />
+            <NeuralBackground theme={wallpaper} />
             {isLocked ? <LockScreen /> : <Desktop />}
         </>
     );

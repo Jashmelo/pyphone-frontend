@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 
-const NeuralBackground = () => {
+const NeuralBackground = ({ theme = 'neural' }) => {
     const canvasRef = useRef(null);
 
     useEffect(() => {
@@ -12,23 +12,34 @@ const NeuralBackground = () => {
         canvas.height = height;
 
         const particles = [];
-        const count = 50;
+        const count = theme === 'cyber' ? 80 : 50;
+
+        const getColors = () => {
+            switch (theme) {
+                case 'sunset': return { dot: '#f97316', line: 'rgba(249, 115, 22, 0.15)', bg: 'rgba(67, 20, 7, 0.2)' };
+                case 'cyber': return { dot: '#06b6d4', line: 'rgba(6, 182, 212, 0.2)', bg: 'rgba(8, 7, 13, 0.3)' };
+                case 'midnight': return { dot: '#312e81', line: 'rgba(49, 46, 129, 0.2)', bg: 'rgba(3, 7, 18, 0.4)' };
+                default: return { dot: '#4f46e5', line: 'rgba(79, 70, 229, 0.1)', bg: 'rgba(0, 0, 0, 0.2)' };
+            }
+        };
+
+        const colors = getColors();
 
         for (let i = 0; i < count; i++) {
             particles.push({
                 x: Math.random() * width,
                 y: Math.random() * height,
-                vx: (Math.random() - 0.5) * 0.5,
-                vy: (Math.random() - 0.5) * 0.5,
+                vx: (Math.random() - 0.5) * (theme === 'cyber' ? 1.2 : 0.5),
+                vy: (Math.random() - 0.5) * (theme === 'cyber' ? 1.2 : 0.5),
                 size: Math.random() * 2 + 1
             });
         }
 
         const animate = () => {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillStyle = colors.bg;
             ctx.fillRect(0, 0, width, height);
 
-            ctx.fillStyle = '#4f46e5'; // Indigo-600
+            ctx.fillStyle = colors.dot;
             particles.forEach(p => {
                 p.x += p.vx;
                 p.y += p.vy;
@@ -41,14 +52,13 @@ const NeuralBackground = () => {
                 ctx.fill();
             });
 
-            // Connections
-            ctx.strokeStyle = 'rgba(79, 70, 229, 0.1)';
+            ctx.strokeStyle = colors.line;
             for (let i = 0; i < count; i++) {
                 for (let j = i + 1; j < count; j++) {
                     const dx = particles[i].x - particles[j].x;
                     const dy = particles[i].y - particles[j].y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < 150) {
+                    if (dist < (theme === 'cyber' ? 100 : 150)) {
                         ctx.beginPath();
                         ctx.moveTo(particles[i].x, particles[i].y);
                         ctx.lineTo(particles[j].x, particles[j].y);
