@@ -3,13 +3,28 @@ import { endpoints, API_BASE_URL } from '../config';
 
 const OSContext = createContext();
 
+// App-specific sizing for different devices
+const APP_SIZES = {
+    mobile: { notes: { w: 320, h: 400 }, messages: { w: 320, h: 500 }, friends: { w: 320, h: 450 }, games: { w: 320, h: 500 }, utils: { w: 320, h: 400 }, settings: { w: 320, h: 450 }, admin: { w: 320, h: 500 }, studio: { w: 320, h: 600 }, nexus: { w: 320, h: 500 } },
+    tablet: { notes: { w: 600, h: 500 }, messages: { w: 600, h: 600 }, friends: { w: 600, h: 550 }, games: { w: 700, h: 600 }, utils: { w: 600, h: 500 }, settings: { w: 600, h: 550 }, admin: { w: 750, h: 600 }, studio: { w: 900, h: 700 }, nexus: { w: 700, h: 600 } },
+    desktop: { notes: { w: 800, h: 600 }, messages: { w: 800, h: 700 }, friends: { w: 750, h: 650 }, games: { w: 900, h: 700 }, utils: { w: 800, h: 600 }, settings: { w: 850, h: 650 }, admin: { w: 1000, h: 700 }, studio: { w: 1200, h: 800 }, nexus: { w: 900, h: 750 } }
+};
+
+const getDeviceType = () => {
+    const width = window.innerWidth;
+    if (width < 768) return 'mobile';
+    if (width < 1024) return 'tablet';
+    return 'desktop';
+};
+
 export const OSProvider = ({ children }) => {
-    const [user, setUser] = useState(null); // { username, settings }
-    const [trueAdmin, setTrueAdmin] = useState(sessionStorage.getItem('true_admin')); // Tracks if the original user was admin
+    const [user, setUser] = useState(null);
+    const [trueAdmin, setTrueAdmin] = useState(sessionStorage.getItem('true_admin'));
     const [isLocked, setIsLocked] = useState(true);
-    const [apps, setApps] = useState([]); // Running app instances { id, appId, zIndex, minimized }
+    const [apps, setApps] = useState([]);
     const [activeApp, setActiveApp] = useState(null);
     const [time, setTime] = useState(new Date());
+    const [deviceType, setDeviceType] = useState(getDeviceType());
 
     // Load user from local storage
     useEffect(() => {
@@ -21,6 +36,13 @@ export const OSProvider = ({ children }) => {
 
         const timer = setInterval(() => setTime(new Date()), 1000);
         return () => clearInterval(timer);
+    }, []);
+
+    // Detect device changes
+    useEffect(() => {
+        const handleResize = () => setDeviceType(getDeviceType());
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     const formatTime = () => {
@@ -71,7 +93,7 @@ export const OSProvider = ({ children }) => {
         };
         setUser(userData);
         setIsLocked(false);
-        setApps([]); // Clear admin apps
+        setApps([]);
         localStorage.setItem('pyphone_user', JSON.stringify(userData));
     };
 
@@ -101,7 +123,6 @@ export const OSProvider = ({ children }) => {
         setUser(updatedUser);
         localStorage.setItem('pyphone_user', JSON.stringify(updatedUser));
 
-        // Sync to backend
         try {
             await fetch(`${API_BASE_URL}/api/users/${user.username}/settings`, {
                 method: 'PATCH',
@@ -146,6 +167,9 @@ export const OSProvider = ({ children }) => {
 
     const openApp = (appId) => {
         const id = Date.now();
+        const appSizes = APP_SIZES[deviceType] || APP_SIZES.desktop;
+        const size = appSizes[appId] || { w: 800, h: 600 };
+        
         setApps(prev => {
             const newApp = {
                 id,
@@ -154,8 +178,8 @@ export const OSProvider = ({ children }) => {
                 minimized: false,
                 x: 100 + (prev.length * 20),
                 y: 100 + (prev.length * 20),
-                width: 800,
-                height: 600
+                width: size.w,
+                height: size.h
             };
             return [...prev, newApp];
         });
@@ -177,7 +201,7 @@ export const OSProvider = ({ children }) => {
 
     return (
         <OSContext.Provider value={{
-            user, trueAdmin, isLocked, apps, activeApp, formattedTime: formatTime(),
+            user, trueAdmin, isLocked, apps, activeApp, formattedTime: formatTime(), deviceType,
             login, register, logout, impersonate, stopImpersonation, updateSettings, deleteAccount,
             openApp, closeApp, focusApp, updateAppWindow
         }}>
