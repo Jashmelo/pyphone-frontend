@@ -10,6 +10,7 @@ const FriendsApp = () => {
     const [sent, setSent] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
+    const [confirmRemove, setConfirmRemove] = useState(null);
 
     useEffect(() => {
         if (user?.username) {
@@ -73,6 +74,7 @@ const FriendsApp = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user: user.username, friend })
             });
+            setConfirmRemove(null);
             fetchData();
         } catch (err) {
             console.error("Remove failed", err);
@@ -81,6 +83,30 @@ const FriendsApp = () => {
 
     return (
         <div className="h-full bg-[#1c1c1e] text-white p-6 flex flex-col gap-8 overflow-y-auto">
+            {/* Confirmation Dialog */}
+            {confirmRemove && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 pointer-events-auto">
+                    <div className="bg-[#2c2c2e] border border-white/10 rounded-xl p-6 max-w-sm mx-4 shadow-2xl">
+                        <h3 className="text-lg font-bold mb-2 text-white">Remove Friend?</h3>
+                        <p className="text-gray-400 mb-6">Are you sure you want to remove <span className="font-semibold text-white">{confirmRemove}</span> from your friends?</p>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setConfirmRemove(null)}
+                                className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg font-medium transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => removeFriend(confirmRemove)}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg font-medium transition-colors"
+                            >
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Search */}
             <section>
                 <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-400">
@@ -153,7 +179,7 @@ const FriendsApp = () => {
                                 </div>
                                 <span className="font-medium">{f}</span>
                             </div>
-                            <button onClick={() => removeFriend(f)} className="p-2 bg-red-600/20 text-red-400 rounded-lg hover:bg-red-600/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => setConfirmRemove(f)} className="p-2 bg-red-600/20 text-red-400 rounded-lg hover:bg-red-600/40 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Trash2 size={14} />
                             </button>
                         </div>
