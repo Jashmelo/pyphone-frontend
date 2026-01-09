@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Check, X, Search, Users } from 'lucide-react';
+import { UserPlus, Check, X, Search, Users, Trash2 } from 'lucide-react';
 import { useOS } from '../../context/OSContext';
 import { endpoints } from '../../config';
 
@@ -66,6 +66,19 @@ const FriendsApp = () => {
         }
     };
 
+    const removeFriend = async (friend) => {
+        try {
+            await fetch(endpoints.removeFriend, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user: user.username, friend })
+            });
+            fetchData();
+        } catch (err) {
+            console.error("Remove failed", err);
+        }
+    };
+
     return (
         <div className="h-full bg-[#1c1c1e] text-white p-6 flex flex-col gap-8 overflow-y-auto">
             {/* Search */}
@@ -84,20 +97,24 @@ const FriendsApp = () => {
                     <button onClick={handleSearch} className="bg-indigo-600 px-4 py-2 rounded-lg font-bold">Search</button>
                 </div>
                 <div className="space-y-2">
-                    {searchResults.map(u => (
-                        <div key={u} className="flex justify-between items-center bg-white/5 p-3 rounded-lg">
-                            <span>{u}</span>
-                            {friends.includes(u) ? (
-                                <span className="text-gray-500 text-sm">Friends</span>
-                            ) : sent.includes(u) ? (
-                                <span className="text-gray-500 text-sm">Pending...</span>
-                            ) : (
-                                <button onClick={() => sendRequest(u)} className="p-2 bg-indigo-600 rounded-full hover:bg-indigo-500">
-                                    <UserPlus size={16} />
-                                </button>
-                            )}
-                        </div>
-                    ))}
+                    {searchResults.length > 0 ? (
+                        searchResults.map(u => (
+                            <div key={u} className="flex justify-between items-center bg-white/5 p-3 rounded-lg">
+                                <span>{u}</span>
+                                {friends.includes(u) ? (
+                                    <span className="text-gray-500 text-sm">Friends</span>
+                                ) : sent.includes(u) ? (
+                                    <span className="text-gray-500 text-sm">Pending...</span>
+                                ) : (
+                                    <button onClick={() => sendRequest(u)} className="p-2 bg-indigo-600 rounded-full hover:bg-indigo-500">
+                                        <UserPlus size={16} />
+                                    </button>
+                                )}
+                            </div>
+                        ))
+                    ) : searchQuery && (
+                        <div className="text-center text-gray-500 italic text-sm py-4">No user found</div>
+                    )}
                 </div>
             </section>
 
@@ -129,11 +146,16 @@ const FriendsApp = () => {
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                     {friends.map(f => (
-                        <div key={f} className="flex items-center gap-3 bg-white/5 p-4 rounded-xl">
-                            <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center font-bold">
-                                {f[0].toUpperCase()}
+                        <div key={f} className="flex items-center justify-between gap-3 bg-white/5 p-4 rounded-xl group">
+                            <div className="flex items-center gap-3 flex-1">
+                                <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center font-bold">
+                                    {f[0].toUpperCase()}
+                                </div>
+                                <span className="font-medium">{f}</span>
                             </div>
-                            <span className="font-medium">{f}</span>
+                            <button onClick={() => removeFriend(f)} className="p-2 bg-red-600/20 text-red-400 rounded-lg hover:bg-red-600/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Trash2 size={14} />
+                            </button>
                         </div>
                     ))}
                     {friends.length === 0 && (
