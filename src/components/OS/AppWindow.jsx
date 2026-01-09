@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useOS } from '../../context/OSContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Minus, Square } from 'lucide-react';
@@ -12,10 +12,32 @@ import AdminApp from '../Apps/AdminApp';
 import DevStudio from '../Apps/DevStudio';
 import NexusAI from '../Apps/NexusAI';
 
+// Default app dimensions for different screen sizes
+const APP_SIZES = {
+    mobile: { notes: { w: 320, h: 400 }, messages: { w: 320, h: 500 }, friends: { w: 320, h: 450 }, games: { w: 320, h: 500 }, utils: { w: 320, h: 400 }, settings: { w: 320, h: 450 }, admin: { w: 320, h: 500 }, studio: { w: 320, h: 600 }, nexus: { w: 320, h: 500 } },
+    tablet: { notes: { w: 600, h: 500 }, messages: { w: 600, h: 600 }, friends: { w: 600, h: 550 }, games: { w: 700, h: 600 }, utils: { w: 600, h: 500 }, settings: { w: 600, h: 550 }, admin: { w: 750, h: 600 }, studio: { w: 900, h: 700 }, nexus: { w: 700, h: 600 } },
+    desktop: { notes: { w: 800, h: 600 }, messages: { w: 800, h: 700 }, friends: { w: 750, h: 650 }, games: { w: 900, h: 700 }, utils: { w: 800, h: 600 }, settings: { w: 850, h: 650 }, admin: { w: 1000, h: 700 }, studio: { w: 1200, h: 800 }, nexus: { w: 900, h: 750 } }
+};
+
 const AppWindow = ({ app }) => {
     const { closeApp, focusApp, activeApp, updateAppWindow } = useOS();
+    const [deviceType, setDeviceType] = useState('desktop');
+    const [isMinimized, setIsMinimized] = useState(false);
     const isActive = activeApp === app.id;
     const windowRef = useRef(null);
+
+    // Detect device type on mount and on resize
+    useEffect(() => {
+        const detectDevice = () => {
+            const width = window.innerWidth;
+            if (width < 768) setDeviceType('mobile');
+            else if (width < 1024) setDeviceType('tablet');
+            else setDeviceType('desktop');
+        };
+        detectDevice();
+        window.addEventListener('resize', detectDevice);
+        return () => window.removeEventListener('resize', detectDevice);
+    }, []);
 
     // App Title Mapping
     const titles = {
@@ -49,6 +71,20 @@ const AppWindow = ({ app }) => {
                     </div>
                 );
         }
+    };
+
+    const handleMinimize = () => {
+        setIsMinimized(!isMinimized);
+    };
+
+    const handleMaximize = () => {
+        const screenPadding = 20;
+        updateAppWindow(app.id, {
+            x: screenPadding,
+            y: screenPadding,
+            width: window.innerWidth - 2 * screenPadding,
+            height: window.innerHeight - 2 * screenPadding - 40
+        });
     };
 
     const handleResize = (e, direction) => {
@@ -97,6 +133,14 @@ const AppWindow = ({ app }) => {
         window.addEventListener('mouseup', onMouseUp);
     };
 
+    if (isMinimized) {
+        return (
+            <div className="fixed bottom-4 right-4 bg-[#2c2c2e] border border-white/10 rounded-lg p-2 cursor-pointer hover:bg-[#3c3c3e] transition-all z-50" onClick={handleMinimize}>
+                <p className="text-[10px] text-white font-bold whitespace-nowrap">{titles[app.appId]}</p>
+            </div>
+        );
+    }
+
     return (
         <motion.div
             ref={windowRef}
@@ -126,19 +170,13 @@ const AppWindow = ({ app }) => {
                 className="h-10 bg-[#2c2c2e] flex items-center justify-between px-4 select-none cursor-move shrink-0"
                 onPointerDown={(e) => {
                     focusApp(app.id);
-                    // Standard drag behavior is handled by motion.div if we set dragListener back to true for the header
-                    // But we want custom control
-                }}
-                onMouseDown={(e) => {
-                    // Manual drag logic if needed, but motion's drag is better
                 }}
             >
-                {/* We use motion's drag controls for better feel */}
                 <div className="flex gap-2 items-center">
                     <div className="flex gap-5 mr-8">
                         <button onClick={() => closeApp(app.id)} className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-400 transition-colors p-2 -m-2 cursor-pointer" />
-                        <button className="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-400 transition-colors p-2 -m-2 cursor-pointer" />
-                        <button className="w-3 h-3 rounded-full bg-green-500 hover:bg-green-400 transition-colors p-2 -m-2 cursor-pointer" />
+                        <button onClick={handleMinimize} className="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-400 transition-colors p-2 -m-2 cursor-pointer" title="Minimize" />
+                        <button onClick={handleMaximize} className="w-3 h-3 rounded-full bg-green-500 hover:bg-green-400 transition-colors p-2 -m-2 cursor-pointer" title="Maximize" />
                     </div>
                     <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">{titles[app.appId] || 'App'}</span>
                 </div>
