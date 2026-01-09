@@ -19,12 +19,15 @@ const PIECE_SYMBOLS = {
 
 const ChessGame = () => {
     const [board, setBoard] = useState(INITIAL_BOARD);
-    const [turn, setTurn] = useState('W'); // 'W' = White, 'B' = Black
-    const [selected, setSelected] = useState(null); // { r, c }
+    const [turn, setTurn] = useState('W');
+    const [selected, setSelected] = useState(null);
     const [status, setStatus] = useState('Your Turn');
     const [gameOver, setGameOver] = useState(false);
+    const [enPassantTarget, setEnPassantTarget] = useState(null);
+    const [whiteCanCastle, setWhiteCanCastle] = useState({ king: true, queenside: true });
+    const [blackCanCastle, setBlackCanCastle] = useState({ king: true, queenside: true });
+    const [promotionPending, setPromotionPending] = useState(null);
 
-    // AI Turn trigger
     useEffect(() => {
         if (turn === 'B' && !gameOver) {
             setStatus('AI is thinking...');
@@ -34,52 +37,6 @@ const ChessGame = () => {
 
     const isWhite = (piece) => piece && piece === piece.toUpperCase();
     const isBlack = (piece) => piece && piece === piece.toLowerCase();
-
-    // Basic move validation (Simplified for performance/code size)
-    const isValidMove = (from, to, boardState) => {
-        const piece = boardState[from.r][from.c];
-        const target = boardState[to.r][to.c];
-
-        // Basic Rules: 
-        // 1. Cannot land on own piece
-        if (target) {
-            if (turn === 'W' && isWhite(target)) return false;
-            if (turn === 'B' && isBlack(target)) return false;
-        }
-
-        // 2. Piece-specific movement
-        const dr = to.r - from.r;
-        const dc = to.c - from.c;
-        const type = piece.toLowerCase();
-
-        switch (type) {
-            case 'p': // Pawn
-                const dir = isWhite(piece) ? -1 : 1;
-                const startRow = isWhite(piece) ? 6 : 1;
-                // Move forward 1
-                if (dc === 0 && dr === dir && !target) return true;
-                // Move forward 2
-                if (dc === 0 && dr === 2 * dir && from.r === startRow && !target && !boardState[from.r + dir][from.c]) return true;
-                // Capture
-                if (Math.abs(dc) === 1 && dr === dir && target) return true;
-                return false;
-            case 'r': // Rook
-                if (dr !== 0 && dc !== 0) return false;
-                // Path check (Vertical/Horizontal)
-                return isPathClear(from, to, boardState);
-            case 'n': // Knight
-                return (Math.abs(dr) === 2 && Math.abs(dc) === 1) || (Math.abs(dr) === 1 && Math.abs(dc) === 2);
-            case 'b': // Bishop
-                if (Math.abs(dr) !== Math.abs(dc)) return false;
-                return isPathClear(from, to, boardState);
-            case 'q': // Queen
-                if (dr !== 0 && dc !== 0 && Math.abs(dr) !== Math.abs(dc)) return false;
-                return isPathClear(from, to, boardState);
-            case 'k': // King
-                return Math.abs(dr) <= 1 && Math.abs(dc) <= 1;
-            default: return false;
-        }
-    };
 
     const isPathClear = (from, to, boardState) => {
         const dr = Math.sign(to.r - from.r);
@@ -92,6 +49,102 @@ const ChessGame = () => {
             c += dc;
         }
         return true;
+    };
+
+    const isValidMove = (from, to, boardState, checkForCheck = true) => {
+        const piece = boardState[from.r][from.c];
+        const target = boardState[to.r][to.c];
+
+        if (!piece) return false;
+        if (target && ((turn === 'W' && isWhite(target)) || (turn === 'B' && isBlack(target)))) return false;
+
+        const dr = to.r - from.r;
+        const dc = to.c - from.c;
+        const type = piece.toLowerCase();
+
+        let isValid = false;
+
+        switch (type) {
+            case 'p': {
+                const dir = isWhite(piece) ? -1 : 1;
+                const startRow = isWhite(piece) ? 6 : 1;
+                if (dc === 0 && dr === dir && !target) isValid = true;
+                else if (dc === 0 && dr === 2 * dir && from.r === startRow && !target && !boardState[from.r + dir][from.c]) isValid = true;
+                else if (Math.abs(dc) === 1 && dr === dir && target) isValid = true;
+                else if (Math.abs(dc) === 1 && dr === dir && enPassantTarget && to.r === enPassantTarget.r && to.c === enPassantTarget.c) isValid = true;
+                break;
+            }
+            case 'r':
+                if ((dr === 0 || dc === 0) && (dr !== 0 || dc !== 0)) isValid = isPathClear(from, to, boardState);
+                break;
+            case 'n':
+                isValid = (Math.abs(dr) === 2 && Math.abs(dc) === 1) || (Math.abs(dr) === 1 && Math.abs(dc) === 2);
+                break;
+            case 'b':
+                if (Math.abs(dr) === Math.abs(dc)) isValid = isPathClear(from, to, boardState);
+                break;
+            case 'q':
+                if ((dr === 0 || dc === 0 || Math.abs(dr) === Math.abs(dc)) && (dr !== 0 || dc !== 0)) isValid = isPathClear(from, to, boardState);
+                break;
+            case 'k': {
+                if (Math.abs(dr) <= 1 && Math.abs(dc) <= 1 && (dr !== 0 || dc !== 0)) isValid = true;
+                else if (dr === 0 && Math.abs(dc) === 2) {
+                    const castleData = isWhite(piece) ? whiteCanCastle : blackCanCastle;
+                    if (dc === 2 && castleData.king) {
+                        const rookPos = isWhite(piece) ? 7 : 0;
+                        if (boardState[from.r][7] === (isWhite(piece) ? 'R' : 'r') &&
+                            isPathClear(from, { r: from.r, c: 7 }, boardState)) {
+                            isValid = true;
+                        }
+                    } else if (dc === -2 && castleData.queenside) {
+                        if (boardState[from.r][0] === (isWhite(piece) ? 'R' : 'r') &&
+                            isPathClear(from, { r: from.r, c: 0 }, boardState)) {
+                            isValid = true;
+                        }
+                    }
+                }
+                break;
+            }
+            default: return false;
+        }
+
+        if (!isValid) return false;
+
+        if (checkForCheck) {
+            const testBoard = boardState.map(r => [...r]);
+            testBoard[to.r][to.c] = piece;
+            testBoard[from.r][from.c] = null;
+            if (isInCheck(testBoard, turn)) return false;
+        }
+
+        return true;
+    };
+
+    const isInCheck = (boardState, forTurn) => {
+        let kingPos = null;
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const piece = boardState[r][c];
+                if (piece && piece.toLowerCase() === 'k') {
+                    if ((forTurn === 'W' && isWhite(piece)) || (forTurn === 'B' && isBlack(piece))) {
+                        kingPos = { r, c };
+                    }
+                }
+            }
+        }
+
+        if (!kingPos) return false;
+
+        const opponentTurn = forTurn === 'W' ? 'B' : 'W';
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const piece = boardState[r][c];
+                if (piece && ((opponentTurn === 'W' && isWhite(piece)) || (opponentTurn === 'B' && isBlack(piece)))) {
+                    if (isValidMove({ r, c }, kingPos, boardState, false)) return true;
+                }
+            }
+        }
+        return false;
     };
 
     const handleSquareClick = (r, c) => {
@@ -115,29 +168,77 @@ const ChessGame = () => {
         const newBoard = board.map(row => [...row]);
         const piece = newBoard[from.r][from.c];
         const captured = newBoard[to.r][to.c];
+        const type = piece.toLowerCase();
+
+        let newEnPassant = null;
+        let newWhiteCastle = { ...whiteCanCastle };
+        let newBlackCastle = { ...blackCanCastle };
+
+        if (type === 'p') {
+            const dir = isWhite(piece) ? -1 : 1;
+            if (Math.abs(to.r - from.r) === 2) {
+                newEnPassant = { r: from.r + dir, c: from.c };
+            } else if (enPassantTarget && to.r === enPassantTarget.r && to.c === enPassantTarget.c) {
+                newBoard[from.r][to.c] = null;
+            }
+
+            if ((isWhite(piece) && to.r === 0) || (isBlack(piece) && to.r === 7)) {
+                setPromotionPending({ from, to, piece });
+                return;
+            }
+        }
+
+        if (type === 'k') {
+            if (isWhite(piece)) newWhiteCastle = { king: false, queenside: false };
+            else newBlackCastle = { king: false, queenside: false };
+
+            if (Math.abs(to.c - from.c) === 2) {
+                if (to.c > from.c) {
+                    newBoard[from.r][5] = newBoard[from.r][7];
+                    newBoard[from.r][7] = null;
+                } else {
+                    newBoard[from.r][3] = newBoard[from.r][0];
+                    newBoard[from.r][0] = null;
+                }
+            }
+        }
+
+        if (type === 'r') {
+            if (isWhite(piece)) {
+                if (from.c === 7) newWhiteCastle.king = false;
+                if (from.c === 0) newWhiteCastle.queenside = false;
+            } else {
+                if (from.c === 7) newBlackCastle.king = false;
+                if (from.c === 0) newBlackCastle.queenside = false;
+            }
+        }
 
         newBoard[to.r][to.c] = piece;
         newBoard[from.r][from.c] = null;
 
-        // Check for King capture (End game)
-        if (captured && captured.toLowerCase() === 'k') {
-            setGameOver(true);
-            setStatus(turn === 'W' ? 'White Wins!' : 'Black Wins!');
-        } else {
-            setTurn(turn === 'W' ? 'B' : 'W');
-            setStatus(turn === 'W' ? "AI's Turn" : 'Your Turn');
-        }
-
+        setWhiteCanCastle(newWhiteCastle);
+        setBlackCanCastle(newBlackCastle);
+        setEnPassantTarget(newEnPassant);
         setBoard(newBoard);
+        setTurn(turn === 'W' ? 'B' : 'W');
+        setStatus(turn === 'W' ? "AI's Turn" : 'Your Turn');
         setSelected(null);
     };
 
-    // AI Logic: Very basic "Score-based" move selection
-    const makeAIMove = () => {
-        let bestMove = null;
-        let bestScore = -Infinity;
+    const handlePromotion = (promotionPiece) => {
+        if (!promotionPending) return;
+        const { from, to, piece } = promotionPending;
+        const newBoard = board.map(row => [...row]);
+        const promotedPiece = isWhite(piece) ? promotionPiece.toUpperCase() : promotionPiece.toLowerCase();
+        newBoard[to.r][to.c] = promotedPiece;
+        newBoard[from.r][from.c] = null;
+        setBoard(newBoard);
+        setPromotionPending(null);
+        setTurn(turn === 'W' ? 'B' : 'W');
+        setStatus(turn === 'W' ? "AI's Turn" : 'Your Turn');
+    };
 
-        // Scan board for possible moves
+    const makeAIMove = () => {
         const possibleMoves = [];
         for (let r1 = 0; r1 < 8; r1++) {
             for (let c1 = 0; c1 < 8; c1++) {
@@ -156,17 +257,19 @@ const ChessGame = () => {
 
         if (possibleMoves.length === 0) {
             setGameOver(true);
-            setStatus('Stalemate / Checkmate!');
+            setStatus(isInCheck(board, 'B') ? 'Black is Checkmated - You Win!' : 'Stalemate!');
             return;
         }
 
-        // Evaluate moves
+        let bestMove = possibleMoves[0];
+        let bestScore = -Infinity;
+
         possibleMoves.forEach(move => {
             const target = board[move.to.r][move.to.c];
-            let score = 0;
+            let score = Math.random() * 10;
             if (target) {
                 const values = { 'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 100 };
-                score += values[target.toLowerCase()];
+                score += values[target.toLowerCase()] * 10;
             }
             if (score > bestScore) {
                 bestScore = score;
@@ -174,9 +277,7 @@ const ChessGame = () => {
             }
         });
 
-        // Random pick if no "captures" found to make it less predictable
-        const move = bestScore <= 0 ? possibleMoves[Math.floor(Math.random() * possibleMoves.length)] : bestMove;
-        movePiece(move.from, move.to);
+        movePiece(bestMove.from, bestMove.to);
     };
 
     const resetGame = () => {
@@ -185,14 +286,30 @@ const ChessGame = () => {
         setSelected(null);
         setStatus('Your Turn');
         setGameOver(false);
+        setEnPassantTarget(null);
+        setWhiteCanCastle({ king: true, queenside: true });
+        setBlackCanCastle({ king: true, queenside: true });
+        setPromotionPending(null);
     };
 
     return (
         <div className="flex flex-col items-center justify-center h-full bg-[#1c1c1e] text-white p-4">
-            {/* Header Info */}
+            {promotionPending && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 rounded-xl">
+                    <div className="bg-[#2c2c2e] p-6 rounded-xl border border-white/10 text-center">
+                        <p className="mb-4 font-bold">Promote to:</p>
+                        <div className="flex gap-4 text-5xl">
+                            <button onClick={() => handlePromotion('q')} className="hover:scale-125 transition">♕</button>
+                            <button onClick={() => handlePromotion('r')} className="hover:scale-125 transition">♖</button>
+                            <button onClick={() => handlePromotion('b')} className="hover:scale-125 transition">♗</button>
+                            <button onClick={() => handlePromotion('n')} className="hover:scale-125 transition">♘</button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="w-full max-w-md flex justify-between items-center mb-6 bg-[#2c2c2e] p-4 rounded-2xl border border-white/10 shadow-xl">
                 <div className="flex items-center gap-3">
-                    <div className="bg-indigo-600 p-2 rounded-lg"><User size={20} /></div>
+                    <div className="bg-indigo-600 p-2 rounded-lg">♔</div>
                     <div>
                         <p className="text-xs text-gray-400 uppercase font-bold tracking-tighter">Player</p>
                         <p className="text-sm font-bold">You (White)</p>
@@ -204,17 +321,14 @@ const ChessGame = () => {
                         <p className="text-xs text-gray-400 uppercase font-bold tracking-tighter">Opponent</p>
                         <p className="text-sm font-bold text-rose-400">DeepBot (Black)</p>
                     </div>
-                    <div className="bg-rose-600 p-2 rounded-lg"><Bot size={20} /></div>
+                    <div className="bg-rose-600 p-2 rounded-lg">♚</div>
                 </div>
             </div>
 
-            {/* Status Bar */}
             <div className={`mb-4 px-6 py-2 rounded-full font-bold shadow-lg transition-all flex items-center gap-2 ${gameOver ? 'bg-emerald-500 scale-110' : 'bg-white/5 border border-white/10'}`}>
-                {gameOver && <Trophy size={18} />}
                 {status}
             </div>
 
-            {/* Board Container */}
             <div className="relative group p-4 bg-[#2c2c2e] rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border-4 border-[#3a3a3c]">
                 <div className="grid grid-cols-8 border border-black shadow-inner">
                     {board.map((row, r) => (
@@ -231,10 +345,6 @@ const ChessGame = () => {
                                         ${isSelected ? 'ring-4 ring-inset ring-indigo-500 bg-indigo-500/30 z-10 scale-105' : 'hover:brightness-125'}
                                         ${piece && isWhite(piece) ? 'text-white' : 'text-rose-400'}
                                     `}
-                                    style={{
-                                        filter: piece ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' : 'none',
-                                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-                                    }}
                                 >
                                     {PIECE_SYMBOLS[piece]}
                                 </div>
@@ -242,17 +352,8 @@ const ChessGame = () => {
                         })
                     ))}
                 </div>
-
-                {/* Board Notation Mockup */}
-                <div className="absolute -left-6 top-0 bottom-0 flex flex-col justify-around text-[10px] text-gray-600 font-bold">
-                    {['8', '7', '6', '5', '4', '3', '2', '1'].map(n => <span key={n}>{n}</span>)}
-                </div>
-                <div className="absolute -bottom-6 left-0 right-0 flex justify-around text-[10px] text-gray-600 font-bold px-4">
-                    {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(l => <span key={l}>{l}</span>)}
-                </div>
             </div>
 
-            {/* Footer Actions */}
             <div className="mt-10 flex gap-4">
                 <button
                     onClick={resetGame}
@@ -260,10 +361,6 @@ const ChessGame = () => {
                 >
                     <RefreshCcw size={18} /> Resign & Restart
                 </button>
-                <div className="flex items-center gap-2 text-gray-500 text-[10px] font-mono border-l border-white/10 pl-4">
-                    <AlertCircle size={14} />
-                    <span>ENGINE: NEURAL_CHESS_V1</span>
-                </div>
             </div>
         </div>
     );
