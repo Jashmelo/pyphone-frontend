@@ -10,6 +10,7 @@ export const endpoints = {
     friends: (username) => `${API_BASE_URL}/api/friends/${username}`,
     friendRequest: `${API_BASE_URL}/api/friends/request`,
     acceptFriend: `${API_BASE_URL}/api/friends/accept`,
+    removeFriend: `${API_BASE_URL}/api/friends/remove`,
     adminStats: `${API_BASE_URL}/api/admin/stats`,
     adminFeedback: `${API_BASE_URL}/api/admin/feedback`,
     adminUsers: `${API_BASE_URL}/api/admin/users`,
