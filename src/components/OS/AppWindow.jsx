@@ -54,11 +54,13 @@ const APP_SIZES = {
 };
 
 const AppWindow = ({ app }) => {
-    const { closeApp, focusApp, activeApp, updateAppWindow } = useOS();
+    const { closeApp, focusApp, activeApp, updateAppWindow, minimizedApps } = useOS();
     const [deviceType, setDeviceType] = useState('desktop');
     const [isMinimized, setIsMinimized] = useState(false);
     const [isMaximized, setIsMaximized] = useState(false);
     const [preMaximizeState, setPreMaximizeState] = useState(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [appBarVisible, setAppBarVisible] = useState(true);
     const isActive = activeApp === app.id;
     const windowRef = useRef(null);
     const dragHandleRef = useRef(null);
@@ -96,6 +98,35 @@ const AppWindow = ({ app }) => {
             y: y
         });
     }, [deviceType]);
+
+    // Check if app bar is blocking the screen and auto-hide
+    useEffect(() => {
+        const checkAppBarCollision = () => {
+            if (windowRef.current) {
+                const rect = windowRef.current.getBoundingClientRect();
+                const windowTop = rect.top;
+                const windowLeft = rect.left;
+                const windowRight = rect.right;
+                const windowBottom = rect.bottom;
+                
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+                
+                // Check if window is near edges or filling screen
+                const isNearTop = windowTop < 60;
+                const isNearLeft = windowLeft < 20;
+                const isNearRight = windowRight > screenWidth - 20;
+                const isFillingHeight = windowBottom > screenHeight - 50;
+                
+                // Hide app bar if blocking view
+                setAppBarVisible(!isNearTop || !isFillingHeight);
+            }
+        };
+        
+        checkAppBarCollision();
+        const timer = setInterval(checkAppBarCollision, 500);
+        return () => clearInterval(timer);
+    }, [app.x, app.y, app.width, app.height]);
 
     // App Title Mapping
     const titles = {
@@ -136,7 +167,7 @@ const AppWindow = ({ app }) => {
     const handleMinimize = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        setIsMinimized(!isMinimized);
+        setIsMinimized(true);
     };
 
     const handleMaximize = (e) => {
@@ -231,14 +262,33 @@ const AppWindow = ({ app }) => {
     };
 
     if (isMinimized) {
+        // Calculate position for minimized windows (horizontal layout at bottom)
+        const minimizedCount = minimizedApps?.length || 0;
+        const minimizedIndex = minimizedApps?.indexOf(app.id) || 0;
+        const minimizedWidth = 160;
+        const minimizedHeight = 50;
+        const gap = 16;
+        const startX = 16;
+        const bottomPosition = 80; // Distance from bottom
+        
+        const xPosition = startX + (minimizedIndex * (minimizedWidth + gap));
+
         return (
-            <div 
-                className="fixed bottom-4 right-4 bg-[#2c2c2e] border border-white/10 rounded-lg p-3 cursor-pointer hover:bg-[#3c3c3e] transition-all z-50 shadow-lg hover:shadow-xl"
+            <motion.div 
+                className="fixed bg-[#2c2c2e] border border-white/10 rounded-lg p-3 cursor-pointer hover:bg-[#3c3c3e] transition-all z-40 shadow-lg hover:shadow-xl"
+                style={{
+                    width: minimizedWidth,
+                    bottom: bottomPosition,
+                    left: xPosition,
+                    maxWidth: '160px'
+                }}
                 onClick={() => setIsMinimized(false)}
-                style={{ maxWidth: '150px' }}
+                initial={{ opacity: 0, y: 100 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 100 }}
             >
                 <p className="text-[10px] text-white font-bold whitespace-nowrap truncate">{titles[app.appId]}</p>
-            </div>
+            </motion.div>
         );
     }
 
@@ -249,7 +299,7 @@ const AppWindow = ({ app }) => {
             dragMomentum={false}
             dragListener={false}
             dragElastic={0}
-            dragTransition={{ power: 0.2, timeConstant: 200 }}
+            dragTransition={{ power: 0.2, timeConstant: 100 }}
             initial={false}
             animate={{
                 x: app.x,
@@ -265,22 +315,31 @@ const AppWindow = ({ app }) => {
                 ${isMaximized ? 'rounded-none' : 'rounded-2xl'}
             `}
             onClick={() => focusApp(app.id)}
+            onDragStart={() => {
+                setIsDragging(true);
+                focusApp(app.id);
+            }}
+            onDrag={(e, info) => {
+                // Update position in real-time while dragging
+                updateAppWindow(app.id, { 
+                    x: Math.max(0, app.x + info.delta.x), 
+                    y: Math.max(40, app.y + info.delta.y) 
+                });
+            }}
             onDragEnd={(e, info) => {
-                if (!isMaximized) {
-                    updateAppWindow(app.id, { 
-                        x: Math.max(0, app.x + info.offset.x), 
-                        y: Math.max(40, app.y + info.offset.y) 
-                    });
-                }
+                setIsDragging(false);
             }}
         >
             {/* Title Bar - Drag Handle */}
-            <motion.div
-                ref={dragHandleRef}
+            <div
+                className="h-10 bg-gradient-to-b from-[#3c3c3e] to-[#2c2c2e] flex items-center justify-between px-4 select-none cursor-move shrink-0 border-b border-white/5 group"
+                onPointerDown={(e) => {
+                    focusApp(app.id);
+                }}
                 drag
                 dragMomentum={false}
                 dragElastic={0}
-                dragTransition={{ power: 0.2, timeConstant: 200 }}
+                dragTransition={{ power: 0.2, timeConstant: 100 }}
                 onDrag={(e, info) => {
                     if (!isMaximized) {
                         updateAppWindow(app.id, { 
@@ -289,13 +348,9 @@ const AppWindow = ({ app }) => {
                         });
                     }
                 }}
-                className="h-10 bg-gradient-to-b from-[#3c3c3e] to-[#2c2c2e] flex items-center justify-between px-4 select-none cursor-move shrink-0 border-b border-white/5 group"
-                onPointerDown={(e) => {
-                    focusApp(app.id);
-                }}
             >
                 <div className="flex gap-3 items-center">
-                    <div className="flex gap-3">
+                    <div className="flex gap-6">
                         {/* Red Close Button */}
                         <button 
                             onClick={handleClose}
@@ -315,11 +370,11 @@ const AppWindow = ({ app }) => {
                             title={isMaximized ? "Restore window" : "Maximize window"}
                         />
                     </div>
-                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-4">
                         {titles[app.appId] || 'App'}
                     </span>
                 </div>
-            </motion.div>
+            </div>
 
             {/* Content Area */}
             <div className="flex-1 overflow-auto bg-[#1c1c1e] text-white">
