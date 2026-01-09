@@ -5,9 +5,9 @@ const OSContext = createContext();
 
 // App-specific sizing for different devices
 const APP_SIZES = {
-    mobile: { notes: { w: 320, h: 400 }, messages: { w: 320, h: 500 }, friends: { w: 320, h: 450 }, games: { w: 320, h: 500 }, utils: { w: 320, h: 400 }, settings: { w: 320, h: 450 }, admin: { w: 320, h: 500 }, studio: { w: 320, h: 600 }, nexus: { w: 320, h: 500 } },
-    tablet: { notes: { w: 600, h: 500 }, messages: { w: 600, h: 600 }, friends: { w: 600, h: 550 }, games: { w: 700, h: 600 }, utils: { w: 600, h: 500 }, settings: { w: 600, h: 550 }, admin: { w: 750, h: 600 }, studio: { w: 900, h: 700 }, nexus: { w: 700, h: 600 } },
-    desktop: { notes: { w: 800, h: 600 }, messages: { w: 800, h: 700 }, friends: { w: 750, h: 650 }, games: { w: 900, h: 700 }, utils: { w: 800, h: 600 }, settings: { w: 850, h: 650 }, admin: { w: 1000, h: 700 }, studio: { w: 1200, h: 800 }, nexus: { w: 900, h: 750 } }
+    mobile: { notes: { w: 320, h: 400 }, messages: { w: 320, h: 500 }, friends: { w: 320, h: 450 }, games: { w: 320, h: 500 }, utils: { w: 320, h: 400 }, settings: { w: 320, h: 450 }, admin: { w: 320, h: 500 }, studio: { w: 320, h: 600 }, nexus: { w: 320, h: 500 }, chess: { w: 320, h: 650 } },
+    tablet: { notes: { w: 600, h: 500 }, messages: { w: 600, h: 600 }, friends: { w: 600, h: 550 }, games: { w: 700, h: 600 }, utils: { w: 600, h: 500 }, settings: { w: 600, h: 550 }, admin: { w: 750, h: 600 }, studio: { w: 900, h: 700 }, nexus: { w: 700, h: 600 }, chess: { w: 650, h: 750 } },
+    desktop: { notes: { w: 800, h: 600 }, messages: { w: 800, h: 700 }, friends: { w: 750, h: 650 }, games: { w: 900, h: 700 }, utils: { w: 800, h: 600 }, settings: { w: 850, h: 650 }, admin: { w: 1000, h: 700 }, studio: { w: 1200, h: 800 }, nexus: { w: 900, h: 750 }, chess: { w: 900, h: 850 } }
 };
 
 const getDeviceType = () => {
@@ -22,6 +22,7 @@ export const OSProvider = ({ children }) => {
     const [trueAdmin, setTrueAdmin] = useState(sessionStorage.getItem('true_admin'));
     const [isLocked, setIsLocked] = useState(true);
     const [apps, setApps] = useState([]);
+    const [minimizedApps, setMinimizedApps] = useState([]);
     const [activeApp, setActiveApp] = useState(null);
     const [time, setTime] = useState(new Date());
     const [deviceType, setDeviceType] = useState(getDeviceType());
@@ -94,6 +95,7 @@ export const OSProvider = ({ children }) => {
         setUser(userData);
         setIsLocked(false);
         setApps([]);
+        setMinimizedApps([]);
         localStorage.setItem('pyphone_user', JSON.stringify(userData));
     };
 
@@ -106,6 +108,7 @@ export const OSProvider = ({ children }) => {
         setTrueAdmin(null);
         sessionStorage.removeItem('true_admin');
         setApps([]);
+        setMinimizedApps([]);
         localStorage.setItem('pyphone_user', JSON.stringify(originalAdmin));
     };
 
@@ -162,6 +165,7 @@ export const OSProvider = ({ children }) => {
         sessionStorage.removeItem('true_admin');
         setIsLocked(true);
         setApps([]);
+        setMinimizedApps([]);
         localStorage.removeItem('pyphone_user');
     };
 
@@ -192,7 +196,19 @@ export const OSProvider = ({ children }) => {
 
     const closeApp = (id) => {
         setApps(apps.filter(a => a.id !== id));
+        setMinimizedApps(minimizedApps.filter(appId => appId !== id));
         if (activeApp === id) setActiveApp(null);
+    };
+
+    const minimizeApp = (id) => {
+        if (!minimizedApps.includes(id)) {
+            setMinimizedApps([...minimizedApps, id]);
+        }
+    };
+
+    const restoreApp = (id) => {
+        setMinimizedApps(minimizedApps.filter(appId => appId !== id));
+        setActiveApp(id);
     };
 
     const focusApp = (id) => {
@@ -203,7 +219,7 @@ export const OSProvider = ({ children }) => {
         <OSContext.Provider value={{
             user, trueAdmin, isLocked, apps, activeApp, formattedTime: formatTime(), deviceType,
             login, register, logout, impersonate, stopImpersonation, updateSettings, deleteAccount,
-            openApp, closeApp, focusApp, updateAppWindow
+            openApp, closeApp, focusApp, updateAppWindow, minimizedApps, minimizeApp, restoreApp
         }}>
             {children}
         </OSContext.Provider>
