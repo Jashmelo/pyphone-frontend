@@ -5,19 +5,16 @@ import { endpoints, API_BASE_URL } from '../../config';
 
 const DevStudio = () => {
     const { user } = useOS();
-    const [view, setView] = useState('projects'); // projects, store, editor
+    const [view, setView] = useState('projects');
     const [appName, setAppName] = useState('');
     const [language, setLanguage] = useState('javascript');
     const [code, setCode] = useState('');
     const [isPublic, setIsPublic] = useState(false);
     const [preview, setPreview] = useState(null);
-    const [status, setStatus] = useState(''); // success, error, saving
-
+    const [status, setStatus] = useState('');
     const [projects, setProjects] = useState([]);
     const [storeApps, setStoreApps] = useState([]);
     const [loading, setLoading] = useState(false);
-
-    // AI State
     const [aiOpen, setAiOpen] = useState(false);
     const [aiInput, setAiInput] = useState('');
     const [aiChat, setAiChat] = useState([]);
@@ -26,10 +23,10 @@ const DevStudio = () => {
     const aiScrollRef = useRef(null);
 
     const languages = [
-        { id: 'javascript', name: 'JavaScript', ext: 'js', default: '// Write your JS app\nconst content = `<div style="padding:20px"><h1>Hello JS</h1></div>`;\nsetContent(content);' },
-        { id: 'python', name: 'Python', ext: 'py', default: '# Simulation Mode\nprint("Hello from PyPhone OS")\n# Web UI rendering via set_content()\nset_content("<h1>Python App</h1>")' },
+        { id: 'javascript', name: 'JavaScript', ext: 'js', default: '// Write your app here\nconst app = document.createElement(\'div\')\napp.style.cssText = "padding: 20px; background: navy; color: white; border-radius: 10px;"\napp.innerHTML = \'<h1>Hello JavaScript!</h1><p>Edit and click Run to see changes</p>\'\ndocument.body.appendChild(app)' },
+        { id: 'python', name: 'Python', ext: 'py', default: '# Simulation Mode\nprint("Hello from PyPhone OS")\nprint("Python code execution in browser is limited")\nprint("For full execution, use the backend API")' },
         { id: 'cpp', name: 'C++', ext: 'cpp', default: '// Simulation Mode\n#include <iostream>\nint main() {\n    std::cout << "PyPhone OS C++ Stack" << std::endl;\n    return 0;\n}' },
-        { id: 'html', name: 'HTML/CSS', ext: 'html', default: '<!-- Pure Markup -->\n<div style="background: navy; color: white; padding: 40px; border-radius: 20px;">\n  <h1>Native HTML App</h1>\n</div>' }
+        { id: 'html', name: 'HTML/CSS', ext: 'html', default: '<!-- Pure HTML/CSS App -->\n<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; border-radius: 20px; color: white; text-align: center;">\n  <h1>Native HTML App</h1>\n  <p>Click Run to render</p>\n</div>' }
     ];
 
     useEffect(() => {
@@ -38,7 +35,6 @@ const DevStudio = () => {
     }, [view]);
 
     useEffect(() => {
-        // Check AI configuration status
         fetch(`${API_BASE_URL}/api/ai/status`)
             .then(res => res.json())
             .then(data => setAiConfigured(data.configured))
@@ -75,7 +71,6 @@ const DevStudio = () => {
         setAppName(app.name);
         setIsPublic(app.is_public);
 
-        // Parse language from code metadata if exists
         const langMatch = app.code.match(/^\[LANG:(.+?)\]/);
         if (langMatch) {
             setLanguage(langMatch[1]);
@@ -100,43 +95,61 @@ const DevStudio = () => {
         }
     }, [aiChat]);
 
-    // Auto-refresh preview logic
+    const runCode = () => {
+        try {
+            if (language === 'html') {
+                setPreview(code);
+                setStatus('success');
+            } else if (language === 'javascript') {
+                let output = '';
+                const originalLog = console.log;
+                
+                // Capture console.log output
+                const captureLog = (...args) => {
+                    output += args.map(arg => {
+                        if (typeof arg === 'object') return JSON.stringify(arg);
+                        return String(arg);
+                    }).join(' ') + '\n';
+                };
+
+                try {
+                    // eslint-disable-next-line no-new-func
+                    const fn = new Function('console', code);
+                    fn({ log: captureLog });
+                    
+                    if (output) {
+                        setPreview(`<div style="background: #1a1a1a; color: #0f0; font-family: 'Courier New', monospace; padding: 20px; border-radius: 10px; white-space: pre-wrap; word-wrap: break-word; font-size: 12px;">${output}</div>`);
+                    } else {
+                        setPreview(`<div style="color: #999; padding: 20px; text-align: center; font-family: monospace;">Code executed (no output)</div>`);
+                    }
+                    setStatus('success');
+                } catch (err) {
+                    setPreview(`<div style="color: #ff6b6b; padding: 20px; font-family: monospace; background: #1a1a1a; border-radius: 10px;"><strong>Error:</strong> ${err.message}</div>`);
+                    setStatus('error');
+                }
+            } else {
+                setPreview(`
+                    <div style="background: #000; color: #0f0; font-family: monospace; padding: 20px; min-height: 200px; border-radius: 10px;">
+                        <div>$ ${language} run main.${languages.find(l => l.id === language)?.ext || 'file'}</div>
+                        <div style="margin-top: 10px;">[BUILD] Compiling kernel links...</div>
+                        <div style="color: #fff; margin-top: 10px;">Hello from the ${language} simulation environment!</div>
+                        <div style="color: #555; margin-top: 20px; font-size: 11px;">// Note: Native execution for ${language} requires backend compilation.</div>
+                    </div>
+                `);
+                setStatus('success');
+            }
+        } catch (err) {
+            setStatus('error');
+            setPreview(`<div style="color: red; padding: 20px; font-family: monospace; background: #1a1a1a; border-radius: 10px;"><strong>Critical Error:</strong> ${err.message}</div>`);
+        }
+    };
+
     useEffect(() => {
         const timer = setTimeout(() => {
             if (code && view === 'editor') runCode();
-        }, 500); // 500ms debounce
+        }, 800);
         return () => clearTimeout(timer);
     }, [code, language, view]);
-
-    const runCode = () => {
-        try {
-            if (language === 'javascript' || language === 'html') {
-                const sandbox = (codeStr) => {
-                    if (language === 'html') return codeStr;
-                    let htmlOutput = '';
-                    const setContent = (html) => { htmlOutput = html; };
-                    // eslint-disable-next-line no-new-func
-                    const fn = new Function('setContent', codeStr);
-                    fn(setContent);
-                    return htmlOutput;
-                };
-                setPreview(sandbox(code));
-            } else {
-                setPreview(`
-                    <div style="background: #000; color: #0f0; font-family: monospace; padding: 20px; min-height: 200px;">
-                        <div>$ ${language} run main.${languages.find(l => l.id === language).ext}</div>
-                        <div style="margin-top: 10px;">[BUILD] Compiling kernel links...</div>
-                        <div style="color: #fff;">Hello from the ${language} simulation environment!</div>
-                        <div style="color: #555; margin-top: 20px;">// Note: Native execution for ${language} requires backend compilation. This is a terminal preview.</div>
-                    </div>
-                `);
-            }
-            setStatus('success');
-        } catch (err) {
-            setStatus('error');
-            setPreview(`<div style="color: red; padding: 20px;">Error: ${err.message}</div>`);
-        }
-    };
 
     const publishApp = async () => {
         if (!appName.trim()) { alert("Please name your app!"); return; }
@@ -154,6 +167,7 @@ const DevStudio = () => {
             if (res.ok) {
                 setStatus('success');
                 setTimeout(() => setStatus(''), 2000);
+                fetchProjects();
             } else { setStatus('error'); }
         } catch (err) { setStatus('error'); }
     };
@@ -161,7 +175,8 @@ const DevStudio = () => {
     const askAI = async () => {
         if (!aiInput.trim() || aiLoading) return;
         setAiChat(prev => [...prev, { role: 'user', content: aiInput }]);
-        setAiInput(''); setAiLoading(true);
+        setAiInput('');
+        setAiLoading(true);
         try {
             const res = await fetch(endpoints.aiStudio, {
                 method: 'POST',
@@ -182,7 +197,7 @@ const DevStudio = () => {
                 method: 'DELETE'
             });
             if (res.ok) {
-                fetchProjects(); // Refresh list
+                fetchProjects();
             }
         } catch (err) {
             console.error('Delete failed:', err);
@@ -266,12 +281,11 @@ const DevStudio = () => {
                             </div>
                         </div>
 
-                        {/* AI Status Warning */}
                         {!aiConfigured && (
                             <div className="bg-yellow-900/20 border-b border-yellow-600/30 px-6 py-2 flex items-center gap-3">
                                 <Terminal size={14} className="text-yellow-400" />
                                 <p className="text-[10px] text-yellow-200 font-mono">
-                                    <span className="font-bold">AI SIMULATION MODE:</span> Gemini API not configured. Set GEMINI_API_KEY for real assistance.
+                                    <span className="font-bold">AI SIMULATION MODE:</span> Gemini API not configured.
                                 </p>
                             </div>
                         )}
@@ -293,7 +307,7 @@ const DevStudio = () => {
                             <div className={`flex flex-col bg-slate-900/20 transition-all ${aiOpen ? 'w-1/3 border-r border-slate-800' : 'w-1/2'}`}>
                                 <div className="bg-slate-900 px-4 py-1 text-[10px] text-slate-500 font-mono border-b border-slate-800">PREVIEW</div>
                                 <div className="flex-1 m-4 bg-white dark:bg-slate-950 rounded-xl shadow-2xl overflow-auto border border-slate-800/50">
-                                    {preview ? <div dangerouslySetInnerHTML={{ __html: preview }} /> : <div className="h-full flex items-center justify-center text-slate-700 uppercase font-black text-xs opacity-20 tracking-[1em]">Compiler Standby</div>}
+                                    {preview ? <div dangerouslySetInnerHTML={{ __html: preview }} /> : <div className="h-full flex items-center justify-center text-slate-700 uppercase font-black text-xs opacity-20 tracking-[1em]">Ready</div>}
                                 </div>
                             </div>
 
@@ -315,7 +329,7 @@ const DevStudio = () => {
                                     </div>
                                     <div className="p-4 border-t border-slate-800">
                                         <div className="bg-slate-950 border border-slate-800 rounded-xl p-2 flex gap-2">
-                                            <input value={aiInput} onChange={e => setAiInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && askAI()} placeholder="Fix bugs..." className="flex-1 bg-transparent border-none focus:ring-0 text-xs text-white px-2" />
+                                            <input value={aiInput} onChange={e => setAiInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && askAI()} placeholder="Ask AI..." className="flex-1 bg-transparent border-none focus:ring-0 text-xs text-white px-2" />
                                             <button onClick={askAI} className="bg-indigo-600 p-2 rounded-lg text-white"><Send size={14} /></button>
                                         </div>
                                     </div>
@@ -347,7 +361,6 @@ const DevStudio = () => {
                                             key={i}
                                             className="group bg-slate-900 border border-slate-800 p-6 rounded-3xl hover:border-indigo-500/50 hover:bg-slate-800/50 transition-all shadow-xl hover:shadow-indigo-500/10 relative"
                                         >
-                                            {/* Delete button for projects only */}
                                             {view === 'projects' && (
                                                 <button
                                                     onClick={(e) => {
@@ -360,10 +373,7 @@ const DevStudio = () => {
                                                     <Trash2 size={16} />
                                                 </button>
                                             )}
-                                            <div
-                                                onClick={() => loadApp(app)}
-                                                className="cursor-pointer"
-                                            >
+                                            <div onClick={() => loadApp(app)} className="cursor-pointer">
                                                 <div className="flex justify-between items-start mb-4">
                                                     <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 group-hover:bg-indigo-600 transition-all group-hover:scale-110">
                                                         <Code2 size={24} className="group-hover:text-white text-indigo-400" />
