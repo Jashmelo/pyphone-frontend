@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { endpoints } from '../config';
+import { endpoints, API_BASE_URL } from '../config';
 
 const OSContext = createContext();
 
@@ -95,10 +95,22 @@ export const OSProvider = ({ children }) => {
         } catch (err) { console.error("Deletion failed", err); }
     };
 
-    const updateSettings = (newSettings) => {
-        const updated = { ...user, settings: { ...user.settings, ...newSettings } };
-        setUser(updated);
-        localStorage.setItem('pyphone_user', JSON.stringify(updated));
+    const updateSettings = async (newSettings) => {
+        const updatedSettings = { ...user.settings, ...newSettings };
+        const updatedUser = { ...user, settings: updatedSettings };
+        setUser(updatedUser);
+        localStorage.setItem('pyphone_user', JSON.stringify(updatedUser));
+
+        // Sync to backend
+        try {
+            await fetch(`${API_BASE_URL}/api/users/${user.username}/settings`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newSettings)
+            });
+        } catch (err) {
+            console.error("Settings sync failed", err);
+        }
     };
 
     const register = async (username, password, confirmPassword) => {
@@ -134,9 +146,22 @@ export const OSProvider = ({ children }) => {
 
     const openApp = (appId) => {
         const id = Date.now();
-        const newApp = { id, appId, zIndex: apps.length + 1, minimized: false };
+        const newApp = {
+            id,
+            appId,
+            zIndex: apps.length + 1,
+            minimized: false,
+            x: 100 + (apps.length * 20),
+            y: 100 + (apps.length * 20),
+            width: 800,
+            height: 600
+        };
         setApps([...apps, newApp]);
         setActiveApp(id);
+    };
+
+    const updateAppWindow = (id, updates) => {
+        setApps(apps.map(a => a.id === id ? { ...a, ...updates } : a));
     };
 
     const closeApp = (id) => {
@@ -152,7 +177,7 @@ export const OSProvider = ({ children }) => {
         <OSContext.Provider value={{
             user, trueAdmin, isLocked, apps, activeApp, formattedTime: formatTime(),
             login, register, logout, impersonate, stopImpersonation, updateSettings, deleteAccount,
-            openApp, closeApp, focusApp
+            openApp, closeApp, focusApp, updateAppWindow
         }}>
             {children}
         </OSContext.Provider>

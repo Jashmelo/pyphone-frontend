@@ -16,6 +16,7 @@ export const endpoints = {
     adminApps: `${API_BASE_URL}/api/admin/apps`,
     adminAppVisibility: `${API_BASE_URL}/api/admin/apps/visibility`,
     apps: (username) => `${API_BASE_URL}/api/apps/${username}`,
+    publicApps: `${API_BASE_URL}/api/apps/public`,
     upload: (username) => `${API_BASE_URL}/api/upload/${username}`,
     aiNexus: `${API_BASE_URL}/api/ai/nexus`,
     aiStudio: `${API_BASE_URL}/api/ai/studio`,

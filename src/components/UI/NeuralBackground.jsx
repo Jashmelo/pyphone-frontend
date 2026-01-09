@@ -35,6 +35,7 @@ const NeuralBackground = ({ theme = 'neural' }) => {
             });
         }
 
+        let animationId;
         const animate = () => {
             ctx.fillStyle = colors.bg;
             ctx.fillRect(0, 0, width, height);
@@ -67,7 +68,7 @@ const NeuralBackground = ({ theme = 'neural' }) => {
                 }
             }
 
-            requestAnimationFrame(animate);
+            animationId = requestAnimationFrame(animate);
         };
 
         animate();
@@ -79,7 +80,11 @@ const NeuralBackground = ({ theme = 'neural' }) => {
             canvas.height = height;
         };
         window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            cancelAnimationFrame(animationId);
+        };
 
     }, [theme]);
 
