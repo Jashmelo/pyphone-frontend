@@ -146,22 +146,24 @@ export const OSProvider = ({ children }) => {
 
     const openApp = (appId) => {
         const id = Date.now();
-        const newApp = {
-            id,
-            appId,
-            zIndex: apps.length + 1,
-            minimized: false,
-            x: 100 + (apps.length * 20),
-            y: 100 + (apps.length * 20),
-            width: 800,
-            height: 600
-        };
-        setApps([...apps, newApp]);
+        setApps(prev => {
+            const newApp = {
+                id,
+                appId,
+                zIndex: prev.length + 1,
+                minimized: false,
+                x: 100 + (prev.length * 20),
+                y: 100 + (prev.length * 20),
+                width: 800,
+                height: 600
+            };
+            return [...prev, newApp];
+        });
         setActiveApp(id);
     };
 
     const updateAppWindow = (id, updates) => {
-        setApps(apps.map(a => a.id === id ? { ...a, ...updates } : a));
+        setApps(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
     };
 
     const closeApp = (id) => {

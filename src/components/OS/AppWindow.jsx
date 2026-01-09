@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useOS } from '../../context/OSContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Minus, Square } from 'lucide-react';
