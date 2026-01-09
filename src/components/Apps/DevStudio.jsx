@@ -42,6 +42,14 @@ const DevStudio = () => {
         }
     }, [aiChat]);
 
+    // Auto-refresh preview logic
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (code) runCode();
+        }, 500); // 500ms debounce
+        return () => clearTimeout(timer);
+    }, [code, language]);
+
     const runCode = () => {
         try {
             if (language === 'javascript' || language === 'html') {

@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useOS } from '../../context/OSContext';
-import { LogOut, Trash2, Palette, ShieldAlert, X, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LogOut, Trash2, Palette, ShieldAlert, X, Check, ChevronLeft, ChevronRight, MessageSquare, Send } from 'lucide-react';
+import { endpoints, API_BASE_URL } from '../../config';
 
 const SettingsApp = () => {
     const { user, logout, updateSettings, deleteAccount } = useOS();
-    const [view, setView] = useState('main'); // main, wallpaper, delete
+    const [view, setView] = useState('main'); // main, wallpaper, delete, feedback
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [feedback, setFeedback] = useState('');
+    const [feedbackStatus, setFeedbackStatus] = useState(''); // '', 'sending', 'sent'
 
     const clock24 = user?.settings?.clock_24h ?? true;
     const currentWallpaper = user?.settings?.wallpaper || 'neural';
@@ -24,6 +27,60 @@ const SettingsApp = () => {
         { id: 'sunset', name: 'Sunset (Orange)', color: 'bg-orange-600', desc: 'Warm glowing energy system' },
         { id: 'cyber', name: 'Cyberpunk (Cyan)', color: 'bg-cyan-500', desc: 'High-speed data stream neon' }
     ];
+
+    if (view === 'feedback') {
+        const submitFeedback = async () => {
+            if (!feedback.trim()) return;
+            setFeedbackStatus('sending');
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/feedback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user.username, content: feedback })
+                });
+                if (res.ok) {
+                    setFeedbackStatus('sent');
+                    setFeedback('');
+                    setTimeout(() => setView('main'), 2000);
+                }
+            } catch (err) {
+                setFeedbackStatus('error');
+            }
+        };
+
+        return (
+            <div className="h-full bg-[#1c1c1e] text-white p-6 flex flex-col">
+                <button onClick={() => setView('main')} className="flex items-center gap-2 text-indigo-400 font-bold mb-6 hover:text-indigo-300">
+                    <ChevronLeft size={20} /> Back
+                </button>
+                <h2 className="text-3xl font-bold mb-4">Feedback</h2>
+                <p className="text-xs text-gray-400 mb-6 uppercase tracking-wider">Help us improve the kernel</p>
+
+                <textarea
+                    value={feedback}
+                    onChange={e => setFeedback(e.target.value)}
+                    placeholder="Describe your issue or suggestion..."
+                    className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm focus:outline-none focus:border-indigo-500/50 resize-none mb-4"
+                />
+
+                <button
+                    onClick={submitFeedback}
+                    disabled={!feedback.trim() || feedbackStatus === 'sending'}
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 py-4 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-50"
+                >
+                    {feedbackStatus === 'sent' ? (
+                        <>
+                            <Check size={20} /> Feedback Received
+                        </>
+                    ) : (
+                        <>
+                            <Send size={18} /> {feedbackStatus === 'sending' ? 'Transmitting...' : 'Send to Admin'}
+                        </>
+                    )}
+                </button>
+            </div>
+        );
+    }
 
     if (view === 'wallpaper') {
         return (
@@ -78,6 +135,19 @@ const SettingsApp = () => {
                                 <span className="font-medium text-[15px]">Wallpaper</span>
                                 <span className="text-[10px] text-gray-500 uppercase">Active: {currentWallpaper}</span>
                             </div>
+                            <ChevronRight size={18} className="text-gray-600 group-hover:text-white transition-colors" />
+                        </div>
+                    </div>
+                </section>
+
+                {/* Support & Feedback */}
+                <section>
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <MessageSquare size={14} /> Help & Support
+                    </h3>
+                    <div className="bg-[#2c2c2e] rounded-2xl overflow-hidden shadow-lg border border-white/5">
+                        <div onClick={() => setView('feedback')} className="p-4 flex justify-between items-center cursor-pointer hover:bg-white/5 transition-colors group">
+                            <span className="font-medium text-[15px]">Submit Feedback</span>
                             <ChevronRight size={18} className="text-gray-600 group-hover:text-white transition-colors" />
                         </div>
                     </div>
