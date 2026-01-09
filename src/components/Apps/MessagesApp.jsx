@@ -192,12 +192,16 @@ const MessagesApp = () => {
                                 <button onClick={handleSearch} className="bg-indigo-600 px-3 py-1.5 rounded-lg text-sm font-bold">Find</button>
                             </div>
                             <div className="space-y-1">
-                                {searchResults.map(u => (
-                                    <div key={u} onClick={() => { setTargetUser(u); setIsSearching(false); }} className="p-3 hover:bg-white/5 rounded-lg cursor-pointer flex items-center justify-between group">
-                                        <span className="text-sm">@{u}</span>
-                                        <ChevronRight size={14} className="opacity-0 group-hover:opacity-50" />
-                                    </div>
-                                ))}
+                                {searchResults.length > 0 ? (
+                                    searchResults.map(u => (
+                                        <div key={u} onClick={() => { setTargetUser(u); setIsSearching(false); }} className="p-3 hover:bg-white/5 rounded-lg cursor-pointer flex items-center justify-between group">
+                                            <span className="text-sm">@{u}</span>
+                                            <ChevronRight size={14} className="opacity-0 group-hover:opacity-50" />
+                                        </div>
+                                    ))
+                                ) : searchQuery && (
+                                    <div className="text-center text-gray-500 italic text-sm py-4">No user found</div>
+                                )}
                             </div>
                         </div>
                     ) : (
