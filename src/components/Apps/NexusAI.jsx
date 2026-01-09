@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Cpu, Send, Bot, User, Terminal, Sparkles, Trash2 } from 'lucide-react';
 import { useOS } from '../../context/OSContext';
-import { endpoints } from '../../config';
+import { endpoints, API_BASE_URL } from '../../config';
 
 const NexusAI = () => {
     const { user } = useOS();
@@ -10,6 +10,7 @@ const NexusAI = () => {
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
+    const [aiConfigured, setAiConfigured] = useState(true);
     const scrollRef = useRef(null);
 
     useEffect(() => {
@@ -17,6 +18,14 @@ const NexusAI = () => {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages]);
+
+    useEffect(() => {
+        // Check AI configuration status
+        fetch(`${API_BASE_URL}/api/ai/status`)
+            .then(res => res.json())
+            .then(data => setAiConfigured(data.configured))
+            .catch(() => setAiConfigured(false));
+    }, []);
 
     const handleSend = async () => {
         if (!input.trim() || loading) return;
@@ -68,6 +77,16 @@ const NexusAI = () => {
                     <Trash2 size={20} />
                 </button>
             </div>
+
+            {/* AI Status Warning */}
+            {!aiConfigured && (
+                <div className="bg-yellow-900/30 border-b border-yellow-600/50 px-6 py-3 flex items-center gap-3">
+                    <Terminal size={16} className="text-yellow-400" />
+                    <p className="text-xs text-yellow-200 font-mono">
+                        <span className="font-bold">SIMULATION MODE:</span> Gemini API key not configured. AI responses are simulated. Set GEMINI_API_KEY environment variable for real AI.
+                    </p>
+                </div>
+            )}
 
             {/* Chat Area */}
             <div

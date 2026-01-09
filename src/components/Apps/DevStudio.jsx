@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Code2, Play, Save, Globe, Lock, CheckCircle2, AlertCircle, Terminal, Languages, Bot, Sparkles, Send, X, ChevronRight, ChevronLeft, LayoutGrid, Package, Plus } from 'lucide-react';
+import { Code2, Play, Save, Globe, Lock, CheckCircle2, AlertCircle, Terminal, Languages, Bot, Sparkles, Send, X, ChevronRight, ChevronLeft, LayoutGrid, Package, Plus, Trash2 } from 'lucide-react';
 import { useOS } from '../../context/OSContext';
 import { endpoints, API_BASE_URL } from '../../config';
 
@@ -22,6 +22,7 @@ const DevStudio = () => {
     const [aiInput, setAiInput] = useState('');
     const [aiChat, setAiChat] = useState([]);
     const [aiLoading, setAiLoading] = useState(false);
+    const [aiConfigured, setAiConfigured] = useState(true);
     const aiScrollRef = useRef(null);
 
     const languages = [
@@ -35,6 +36,14 @@ const DevStudio = () => {
         if (view === 'projects') fetchProjects();
         if (view === 'store') fetchStore();
     }, [view]);
+
+    useEffect(() => {
+        // Check AI configuration status
+        fetch(`${API_BASE_URL}/api/ai/status`)
+            .then(res => res.json())
+            .then(data => setAiConfigured(data.configured))
+            .catch(() => setAiConfigured(false));
+    }, []);
 
     const fetchProjects = async () => {
         setLoading(true);
@@ -166,6 +175,20 @@ const DevStudio = () => {
         } finally { setAiLoading(false); }
     };
 
+    const deleteApp = async (appName) => {
+        if (!confirm(`Delete "${appName}"? This cannot be undone.`)) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/apps/${user.username}/${encodeURIComponent(appName)}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                fetchProjects(); // Refresh list
+            }
+        } catch (err) {
+            console.error('Delete failed:', err);
+        }
+    };
+
     return (
         <div className="h-full flex bg-[#0f172a] text-slate-200 overflow-hidden">
             {/* Nav Sidebar */}
@@ -243,6 +266,16 @@ const DevStudio = () => {
                             </div>
                         </div>
 
+                        {/* AI Status Warning */}
+                        {!aiConfigured && (
+                            <div className="bg-yellow-900/20 border-b border-yellow-600/30 px-6 py-2 flex items-center gap-3">
+                                <Terminal size={14} className="text-yellow-400" />
+                                <p className="text-[10px] text-yellow-200 font-mono">
+                                    <span className="font-bold">AI SIMULATION MODE:</span> Gemini API not configured. Set GEMINI_API_KEY for real assistance.
+                                </p>
+                            </div>
+                        )}
+
                         <div className="flex-1 flex overflow-hidden">
                             <div className={`flex flex-col border-r border-slate-800 transition-all ${aiOpen ? 'w-1/3' : 'w-1/2'}`}>
                                 <div className="bg-slate-900 px-4 py-1 text-[10px] text-slate-500 font-mono border-b border-slate-800 flex justify-between">
@@ -312,22 +345,39 @@ const DevStudio = () => {
                                     (view === 'projects' ? projects : storeApps).map((app, i) => (
                                         <div
                                             key={i}
-                                            onClick={() => loadApp(app)}
-                                            className="group bg-slate-900 border border-slate-800 p-6 rounded-3xl cursor-pointer hover:border-indigo-500/50 hover:bg-slate-800/50 transition-all shadow-xl hover:shadow-indigo-500/10"
+                                            className="group bg-slate-900 border border-slate-800 p-6 rounded-3xl hover:border-indigo-500/50 hover:bg-slate-800/50 transition-all shadow-xl hover:shadow-indigo-500/10 relative"
                                         >
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 group-hover:bg-indigo-600 transition-all group-hover:scale-110">
-                                                    <Code2 size={24} className="group-hover:text-white text-indigo-400" />
+                                            {/* Delete button for projects only */}
+                                            {view === 'projects' && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        deleteApp(app.name);
+                                                    }}
+                                                    className="absolute top-4 right-4 p-2 bg-red-900/20 hover:bg-red-600 text-red-400 hover:text-white rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                    title="Delete App"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            )}
+                                            <div
+                                                onClick={() => loadApp(app)}
+                                                className="cursor-pointer"
+                                            >
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 group-hover:bg-indigo-600 transition-all group-hover:scale-110">
+                                                        <Code2 size={24} className="group-hover:text-white text-indigo-400" />
+                                                    </div>
+                                                    <span className="text-[10px] font-black bg-slate-950 px-2 py-1 rounded-full text-slate-500 border border-slate-800 uppercase tracking-widest">
+                                                        {app.code.match(/^\[LANG:(.+?)\]/)?.[1] || 'JS'}
+                                                    </span>
                                                 </div>
-                                                <span className="text-[10px] font-black bg-slate-950 px-2 py-1 rounded-full text-slate-500 border border-slate-800 uppercase tracking-widest">
-                                                    {app.code.match(/^\[LANG:(.+?)\]/)?.[1] || 'JS'}
-                                                </span>
-                                            </div>
-                                            <h3 className="text-xl font-bold mb-1 truncate">{app.name}</h3>
-                                            <p className="text-xs text-slate-500 mb-4">{app.owner ? `@${app.owner}` : 'Private User'}</p>
-                                            <div className="flex gap-2">
-                                                {app.is_public ? <Globe size={14} className="text-emerald-500" /> : <Lock size={14} className="text-slate-600" />}
-                                                <span className="text-[10px] text-slate-600 font-mono">{app.created_at || 'Recently Saved'}</span>
+                                                <h3 className="text-xl font-bold mb-1 truncate">{app.name}</h3>
+                                                <p className="text-xs text-slate-500 mb-4">{app.owner ? `@${app.owner}` : 'Private User'}</p>
+                                                <div className="flex gap-2">
+                                                    {app.is_public ? <Globe size={14} className="text-emerald-500" /> : <Lock size={14} className="text-slate-600" />}
+                                                    <span className="text-[10px] text-slate-600 font-mono">{app.created_at || 'Recently Saved'}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     ))
