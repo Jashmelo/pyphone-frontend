@@ -20,13 +20,15 @@ const DevStudio = () => {
     const [aiChat, setAiChat] = useState([]);
     const [aiLoading, setAiLoading] = useState(false);
     const [aiConfigured, setAiConfigured] = useState(true);
+    const [autoRun, setAutoRun] = useState(true);
     const aiScrollRef = useRef(null);
+    const autoRunTimerRef = useRef(null);
 
     const languages = [
-        { id: 'javascript', name: 'JavaScript', ext: 'js', default: '// Write your app here\nconst app = document.createElement(\'div\')\napp.style.cssText = "padding: 20px; background: navy; color: white; border-radius: 10px;"\napp.innerHTML = \'<h1>Hello JavaScript!</h1><p>Edit and click Run to see changes</p>\'\ndocument.body.appendChild(app)' },
+        { id: 'javascript', name: 'JavaScript', ext: 'js', default: '// Write your JavaScript app here\nconsole.log("Hello from PyPhone OS!")\n\n// Example: Create a styled div\nconst container = document.createElement(\'div\')\ncontainer.style.cssText = "padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px; text-align: center;"\ncontainer.innerHTML = \'<h1>Interactive App</h1><p>Edit code and click Run</p>\'\ndocument.body.innerHTML = ""\ndocument.body.appendChild(container)' },
         { id: 'python', name: 'Python', ext: 'py', default: '# Simulation Mode\nprint("Hello from PyPhone OS")\nprint("Python code execution in browser is limited")\nprint("For full execution, use the backend API")' },
         { id: 'cpp', name: 'C++', ext: 'cpp', default: '// Simulation Mode\n#include <iostream>\nint main() {\n    std::cout << "PyPhone OS C++ Stack" << std::endl;\n    return 0;\n}' },
-        { id: 'html', name: 'HTML/CSS', ext: 'html', default: '<!-- Pure HTML/CSS App -->\n<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; border-radius: 20px; color: white; text-align: center;">\n  <h1>Native HTML App</h1>\n  <p>Click Run to render</p>\n</div>' }
+        { id: 'html', name: 'HTML/CSS', ext: 'html', default: '<!-- Pure HTML/CSS App -->\n<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; border-radius: 20px; color: white; text-align: center;">\n  <h1>Native HTML App</h1>\n  <p>Click Run to render your design</p>\n  <button style="background: white; color: #667eea; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 20px;">Click Me</button>\n</div>' }
     ];
 
     useEffect(() => {
@@ -79,6 +81,7 @@ const DevStudio = () => {
             setCode(app.code);
         }
         setView('editor');
+        setPreview(null);
     };
 
     const createNew = () => {
@@ -87,6 +90,7 @@ const DevStudio = () => {
         setCode(languages[0].default);
         setIsPublic(false);
         setView('editor');
+        setPreview(null);
     };
 
     useEffect(() => {
@@ -102,29 +106,47 @@ const DevStudio = () => {
                 setStatus('success');
             } else if (language === 'javascript') {
                 let output = '';
-                const originalLog = console.log;
+                const errors = [];
                 
-                // Capture console.log output
-                const captureLog = (...args) => {
-                    output += args.map(arg => {
-                        if (typeof arg === 'object') return JSON.stringify(arg);
-                        return String(arg);
-                    }).join(' ') + '\n';
+                // Create a custom console object that captures output
+                const customConsole = {
+                    log: (...args) => {
+                        output += args.map(arg => {
+                            if (typeof arg === 'object') return JSON.stringify(arg);
+                            return String(arg);
+                        }).join(' ') + '\n';
+                    },
+                    error: (...args) => {
+                        const msg = args.map(arg => {
+                            if (typeof arg === 'object') return JSON.stringify(arg);
+                            return String(arg);
+                        }).join(' ');
+                        errors.push(msg);
+                        output += 'ERROR: ' + msg + '\n';
+                    },
+                    warn: (...args) => {
+                        output += 'WARN: ' + args.join(' ') + '\n';
+                    },
+                    info: (...args) => {
+                        output += args.join(' ') + '\n';
+                    }
                 };
 
                 try {
+                    // Create a new function with the code and pass custom console
                     // eslint-disable-next-line no-new-func
-                    const fn = new Function('console', code);
-                    fn({ log: captureLog });
+                    const fn = new Function('console', 'document', code);
+                    fn(customConsole, document);
                     
                     if (output) {
-                        setPreview(`<div style="background: #1a1a1a; color: #0f0; font-family: 'Courier New', monospace; padding: 20px; border-radius: 10px; white-space: pre-wrap; word-wrap: break-word; font-size: 12px;">${output}</div>`);
+                        setPreview(`<div style="background: #1a1a1a; color: #0f0; font-family: 'Courier New', monospace; padding: 20px; border-radius: 10px; white-space: pre-wrap; word-wrap: break-word; font-size: 12px; line-height: 1.5;">${output.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`);
                     } else {
                         setPreview(`<div style="color: #999; padding: 20px; text-align: center; font-family: monospace;">Code executed (no output)</div>`);
                     }
                     setStatus('success');
                 } catch (err) {
-                    setPreview(`<div style="color: #ff6b6b; padding: 20px; font-family: monospace; background: #1a1a1a; border-radius: 10px;"><strong>Error:</strong> ${err.message}</div>`);
+                    const errorMsg = err.message || String(err);
+                    setPreview(`<div style="color: #ff6b6b; padding: 20px; font-family: monospace; background: #1a1a1a; border-radius: 10px; border-left: 4px solid #ff6b6b;"><strong>Error:</strong><br/>${errorMsg.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`);
                     setStatus('error');
                 }
             } else {
@@ -140,16 +162,27 @@ const DevStudio = () => {
             }
         } catch (err) {
             setStatus('error');
-            setPreview(`<div style="color: red; padding: 20px; font-family: monospace; background: #1a1a1a; border-radius: 10px;"><strong>Critical Error:</strong> ${err.message}</div>`);
+            const errorMsg = err.message || String(err);
+            setPreview(`<div style="color: #ff6b6b; padding: 20px; font-family: monospace; background: #1a1a1a; border-radius: 10px; border-left: 4px solid #ff6b6b;"><strong>Critical Error:</strong><br/>${errorMsg.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`);
         }
     };
 
+    // Auto-run code with debounce
     useEffect(() => {
-        const timer = setTimeout(() => {
-            if (code && view === 'editor') runCode();
-        }, 800);
-        return () => clearTimeout(timer);
-    }, [code, language, view]);
+        if (autoRun && view === 'editor' && code) {
+            if (autoRunTimerRef.current) {
+                clearTimeout(autoRunTimerRef.current);
+            }
+            autoRunTimerRef.current = setTimeout(() => {
+                runCode();
+            }, 1000);
+        }
+        return () => {
+            if (autoRunTimerRef.current) {
+                clearTimeout(autoRunTimerRef.current);
+            }
+        };
+    }, [code, language, view, autoRun]);
 
     const publishApp = async () => {
         if (!appName.trim()) { alert("Please name your app!"); return; }
@@ -266,16 +299,29 @@ const DevStudio = () => {
                                     {isPublic ? <Globe size={12} /> : <Lock size={12} />}
                                     {isPublic ? 'PUBLIC' : 'PRIVATE'}
                                 </button>
+                                <button 
+                                    onClick={() => setAutoRun(!autoRun)} 
+                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${autoRun ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}
+                                    title="Auto-run code on edit"
+                                >
+                                    {autoRun ? 'AUTO RUN' : 'MANUAL'}
+                                </button>
                                 <button onClick={() => setAiOpen(!aiOpen)} className={`p-2 rounded-lg transition-all ${aiOpen ? 'bg-indigo-600/20 text-indigo-400' : 'bg-slate-800 text-slate-500'}`} title="Studio AI">
                                     <Bot size={20} />
                                 </button>
                             </div>
 
                             <div className="flex items-center gap-3">
-                                <button onClick={runCode} className="bg-slate-800 hover:bg-slate-700 font-bold px-4 py-1.5 rounded-lg text-sm border border-slate-700 flex items-center gap-2">
+                                <button 
+                                    onClick={runCode} 
+                                    className="bg-slate-800 hover:bg-slate-700 font-bold px-4 py-1.5 rounded-lg text-sm border border-slate-700 flex items-center gap-2 transition-all active:scale-95"
+                                >
                                     <Play size={16} /> Run
                                 </button>
-                                <button onClick={publishApp} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-1.5 rounded-lg text-sm transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2">
+                                <button 
+                                    onClick={publishApp} 
+                                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-1.5 rounded-lg text-sm transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2 active:scale-95"
+                                >
                                     <Save size={16} /> {status === 'saving' ? '...' : 'Publish'}
                                 </button>
                             </div>
