@@ -135,10 +135,10 @@ const AppWindow = ({ app }) => {
             >
                 {/* We use motion's drag controls for better feel */}
                 <div className="flex gap-2 items-center">
-                    <div className="flex gap-1.5 mr-4">
-                        <button onClick={() => closeApp(app.id)} className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-400 transition-colors" />
-                        <button className="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-400 transition-colors" />
-                        <button className="w-3 h-3 rounded-full bg-green-500 hover:bg-green-400 transition-colors" />
+                    <div className="flex gap-3 mr-4">
+                        <button onClick={() => closeApp(app.id)} className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-400 transition-colors p-2 -m-2 cursor-pointer" />
+                        <button className="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-400 transition-colors p-2 -m-2 cursor-pointer" />
+                        <button className="w-3 h-3 rounded-full bg-green-500 hover:bg-green-400 transition-colors p-2 -m-2 cursor-pointer" />
                     </div>
                     <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">{titles[app.appId] || 'App'}</span>
                 </div>
