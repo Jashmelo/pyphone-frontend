@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useOS } from '../../context/OSContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Minus, Square } from 'lucide-react';
+import { X, Minus, Maximize2 } from 'lucide-react';
 import NotesApp from '../Apps/NotesApp';
 import GamesArcade from '../Apps/GamesArcade';
 import MessagesApp from '../Apps/MessagesApp';
@@ -54,11 +54,11 @@ const APP_SIZES = {
 };
 
 const AppWindow = ({ app }) => {
-    const { closeApp, focusApp, activeApp, updateAppWindow } = useOS();
+    const { closeApp, focusApp, activeApp, updateAppWindow, minimizeApp, restoreApp, minimizedApps } = useOS();
     const [deviceType, setDeviceType] = useState('desktop');
     const [isMinimized, setIsMinimized] = useState(false);
-    const [isMaximized, setIsMaximized] = useState(false);
-    const [preMaximizeState, setPreMaximizeState] = useState(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [preFullscreenState, setPreFullscreenState] = useState(null);
     const [appBarVisible, setAppBarVisible] = useState(true);
     const isActive = activeApp === app.id;
     const windowRef = useRef(null);
@@ -166,36 +166,35 @@ const AppWindow = ({ app }) => {
     const handleMinimize = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        setIsMinimized(true);
+        minimizeApp(app.id);
     };
 
-    const handleMaximize = (e) => {
+    const handleFullscreen = (e) => {
         e.preventDefault();
         e.stopPropagation();
         
-        if (isMaximized) {
+        if (isFullscreen) {
             // Restore to previous size
-            if (preMaximizeState) {
-                updateAppWindow(app.id, preMaximizeState);
+            if (preFullscreenState) {
+                updateAppWindow(app.id, preFullscreenState);
             }
-            setIsMaximized(false);
-            setPreMaximizeState(null);
+            setIsFullscreen(false);
+            setPreFullscreenState(null);
         } else {
-            // Save current state and maximize
-            setPreMaximizeState({
+            // Save current state and go fullscreen
+            setPreFullscreenState({
                 x: app.x,
                 y: app.y,
                 width: app.width,
                 height: app.height
             });
-            const screenPadding = 20;
             updateAppWindow(app.id, {
-                x: screenPadding,
-                y: screenPadding,
-                width: window.innerWidth - 2 * screenPadding,
-                height: window.innerHeight - 2 * screenPadding - 40
+                x: 0,
+                y: 0,
+                width: window.innerWidth,
+                height: window.innerHeight
             });
-            setIsMaximized(true);
+            setIsFullscreen(true);
         }
     };
 
@@ -209,7 +208,7 @@ const AppWindow = ({ app }) => {
     // ONLY constraint: title bar cannot go above 40px (app bar height)
     // Windows can go off-screen on sides and bottom
     const handleTitleBarMouseDown = (e) => {
-        if (isMaximized || e.button !== 0) return; // Only left mouse button
+        if (isFullscreen || e.button !== 0) return; // Only left mouse button
         e.preventDefault();
         focusApp(app.id);
         
@@ -252,8 +251,8 @@ const AppWindow = ({ app }) => {
         e.preventDefault();
         e.stopPropagation();
         
-        // Don't allow resize when maximized
-        if (isMaximized) return;
+        // Don't allow resize when fullscreen
+        if (isFullscreen) return;
 
         const startX = e.clientX;
         const startY = e.clientY;
@@ -314,29 +313,8 @@ const AppWindow = ({ app }) => {
         window.addEventListener('mouseup', onMouseUp);
     };
 
-    if (isMinimized) {
-        // Minimized window restores to its own app position
-        return (
-            <motion.div 
-                className="fixed bg-[#2c2c2e] border border-white/10 rounded-lg p-3 cursor-pointer hover:bg-[#3c3c3e] transition-all z-40 shadow-lg hover:shadow-xl"
-                style={{
-                    bottom: '100px',
-                    right: '20px',
-                    width: '140px'
-                }}
-                onClick={() => {
-                    setIsMinimized(false);
-                    focusApp(app.id);
-                }}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ type: 'spring', damping: 15, stiffness: 300 }}
-            >
-                <p className="text-[10px] text-white font-bold whitespace-nowrap truncate">{titles[app.appId]}</p>
-                <p className="text-[9px] text-gray-400 mt-1">Click to restore</p>
-            </motion.div>
-        );
+    if (minimizedApps.includes(app.id)) {
+        return null; // Minimized apps don't render as windows
     }
 
     return (
@@ -352,7 +330,7 @@ const AppWindow = ({ app }) => {
             }}
             className={`bg-[#1c1c1e] rounded-2xl overflow-hidden shadow-2xl border border-white/10 flex flex-col pointer-events-auto
                 ${isActive ? 'ring-2 ring-white/20' : ''}
-                ${isMaximized ? 'rounded-none' : 'rounded-2xl'}
+                ${isFullscreen ? 'rounded-none' : 'rounded-2xl'}
             `}
             onClick={() => focusApp(app.id)}
         >
@@ -373,13 +351,13 @@ const AppWindow = ({ app }) => {
                         <button 
                             onClick={handleMinimize}
                             className="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-400 active:scale-90 transition-all p-2 -m-2 cursor-pointer shadow-sm hover:shadow-md" 
-                            title="Minimize window"
+                            title="Minimize to dock"
                         />
-                        {/* Green Maximize Button */}
+                        {/* Green Fullscreen Button */}
                         <button 
-                            onClick={handleMaximize}
+                            onClick={handleFullscreen}
                             className="w-3 h-3 rounded-full bg-green-500 hover:bg-green-400 active:scale-90 transition-all p-2 -m-2 cursor-pointer shadow-sm hover:shadow-md" 
-                            title={isMaximized ? "Restore window" : "Maximize window"}
+                            title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
                         />
                     </div>
                     <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-4">
@@ -393,8 +371,8 @@ const AppWindow = ({ app }) => {
                 {renderContent()}
             </div>
 
-            {/* Resize Handles - Hidden when maximized */}
-            {!isMaximized && (
+            {/* Resize Handles - Hidden when fullscreen */}
+            {!isFullscreen && (
                 <>
                     {/* Right edge */}
                     <div 
