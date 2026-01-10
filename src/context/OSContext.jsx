@@ -27,12 +27,19 @@ export const OSProvider = ({ children }) => {
     const [time, setTime] = useState(new Date());
     const [deviceType, setDeviceType] = useState(getDeviceType());
     const [suspension, setSuspension] = useState(null); // { reason, expireTime, suspended_at }
+    const [userWallpapers, setUserWallpapers] = useState({}); // Store wallpaper for each user
 
     // Load user from local storage and check suspension on mount
     useEffect(() => {
         const saved = localStorage.getItem('pyphone_user');
         const rememberMe = localStorage.getItem('pyphone_remember_me') === 'true';
         const savedSuspension = localStorage.getItem('pyphone_suspension');
+        const savedWallpapers = localStorage.getItem('pyphone_wallpapers');
+        
+        // Load wallpaper settings for all users
+        if (savedWallpapers) {
+            setUserWallpapers(JSON.parse(savedWallpapers));
+        }
         
         if (saved && rememberMe) {
             const userData = JSON.parse(saved);
@@ -225,9 +232,15 @@ export const OSProvider = ({ children }) => {
             setTrueAdmin('admin');
         }
 
+        // Get wallpaper for this user, default to 'neural'
+        const userWallpaper = userWallpapers[username] || 'neural';
+
         const userData = {
             username,
-            settings: user?.settings || { clock_24h: true, wallpaper: 'neural' }
+            settings: {
+                clock_24h: true,
+                wallpaper: userWallpaper
+            }
         };
         setUser(userData);
         setIsLocked(false);
@@ -241,7 +254,10 @@ export const OSProvider = ({ children }) => {
     const stopImpersonation = () => {
         const originalAdmin = {
             username: 'admin',
-            settings: { clock_24h: true, wallpaper: 'neural' }
+            settings: {
+                clock_24h: true,
+                wallpaper: userWallpapers['admin'] || 'neural'
+            }
         };
         setUser(originalAdmin);
         setTrueAdmin(null);
@@ -266,6 +282,13 @@ export const OSProvider = ({ children }) => {
         const updatedUser = { ...user, settings: updatedSettings };
         setUser(updatedUser);
         localStorage.setItem('pyphone_user', JSON.stringify(updatedUser));
+
+        // Save wallpaper preference for this user
+        if (newSettings.wallpaper) {
+            const updatedWallpapers = { ...userWallpapers, [user.username]: newSettings.wallpaper };
+            setUserWallpapers(updatedWallpapers);
+            localStorage.setItem('pyphone_wallpapers', JSON.stringify(updatedWallpapers));
+        }
 
         try {
             await fetch(`${API_BASE_URL}/api/users/${user.username}/settings`, {
