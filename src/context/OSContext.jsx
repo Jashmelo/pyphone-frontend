@@ -67,22 +67,6 @@ export const OSProvider = ({ children }) => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Check suspension status periodically for logged-in suspended users
-    useEffect(() => {
-        if (!user || !suspension) return;
-        
-        const interval = setInterval(() => {
-            const now = Date.now();
-            if (now >= suspension.expireTime) {
-                // Suspension has expired - auto-logout
-                setSuspension(null);
-                logout();
-            }
-        }, 1000);
-        
-        return () => clearInterval(interval);
-    }, [user, suspension]);
-
     // Check suspension status from backend - CRITICAL FIX
     const checkSuspension = async (username) => {
         try {
@@ -92,9 +76,11 @@ export const OSProvider = ({ children }) => {
                 // Check if user is suspended AND suspension hasn't expired
                 if (data.is_suspended && data.expire_time) {
                     const now = Date.now();
+                    // Parse the ISO string correctly
                     const expireTime = new Date(data.expire_time).getTime();
                     if (now < expireTime) {
                         // Suspension is still active
+                        console.log(`[Suspension] User ${username} suspended until ${new Date(expireTime).toISOString()}`);
                         return {
                             reason: data.reason || 'No reason provided',
                             expireTime: expireTime,
@@ -142,9 +128,15 @@ export const OSProvider = ({ children }) => {
                         settings: { clock_24h: true, wallpaper: 'neural' }
                     };
                     
+                    // Parse expireTime carefully
+                    const expireTime = new Date(detail.expire_time).getTime();
+                    console.log(`[Login] User ${username} is suspended until ${new Date(expireTime).toISOString()}`);
+                    console.log(`[Login] Current time: ${new Date().toISOString()}`);
+                    console.log(`[Login] Time remaining: ${(expireTime - Date.now()) / 1000 / 60} minutes`);
+                    
                     setSuspension({
                         reason: detail.reason || 'No reason provided',
-                        expireTime: new Date(detail.expire_time).getTime(),
+                        expireTime: expireTime,
                         suspended_at: detail.suspended_at || new Date().toISOString()
                     });
                     setUser(userData);
