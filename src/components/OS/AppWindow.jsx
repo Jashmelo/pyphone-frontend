@@ -54,16 +54,14 @@ const APP_SIZES = {
 };
 
 const AppWindow = ({ app }) => {
-    const { closeApp, focusApp, activeApp, updateAppWindow, minimizedApps } = useOS();
+    const { closeApp, focusApp, activeApp, updateAppWindow } = useOS();
     const [deviceType, setDeviceType] = useState('desktop');
     const [isMinimized, setIsMinimized] = useState(false);
     const [isMaximized, setIsMaximized] = useState(false);
     const [preMaximizeState, setPreMaximizeState] = useState(null);
-    const [isDragging, setIsDragging] = useState(false);
     const [appBarVisible, setAppBarVisible] = useState(true);
     const isActive = activeApp === app.id;
     const windowRef = useRef(null);
-    const dragHandleRef = useRef(null);
 
     // Detect device type on mount and on resize
     useEffect(() => {
@@ -262,32 +260,26 @@ const AppWindow = ({ app }) => {
     };
 
     if (isMinimized) {
-        // Calculate position for minimized windows (horizontal layout at bottom)
-        const minimizedCount = minimizedApps?.length || 0;
-        const minimizedIndex = minimizedApps?.indexOf(app.id) || 0;
-        const minimizedWidth = 160;
-        const minimizedHeight = 50;
-        const gap = 16;
-        const startX = 16;
-        const bottomPosition = 80; // Distance from bottom
-        
-        const xPosition = startX + (minimizedIndex * (minimizedWidth + gap));
-
+        // Minimized window restores to its own app position
         return (
             <motion.div 
                 className="fixed bg-[#2c2c2e] border border-white/10 rounded-lg p-3 cursor-pointer hover:bg-[#3c3c3e] transition-all z-40 shadow-lg hover:shadow-xl"
                 style={{
-                    width: minimizedWidth,
-                    bottom: bottomPosition,
-                    left: xPosition,
-                    maxWidth: '160px'
+                    bottom: '100px',
+                    right: '20px',
+                    width: '140px'
                 }}
-                onClick={() => setIsMinimized(false)}
-                initial={{ opacity: 0, y: 100 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 100 }}
+                onClick={() => {
+                    setIsMinimized(false);
+                    focusApp(app.id);
+                }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ type: 'spring', damping: 15, stiffness: 300 }}
             >
                 <p className="text-[10px] text-white font-bold whitespace-nowrap truncate">{titles[app.appId]}</p>
+                <p className="text-[9px] text-gray-400 mt-1">Click to restore</p>
             </motion.div>
         );
     }
@@ -295,11 +287,6 @@ const AppWindow = ({ app }) => {
     return (
         <motion.div
             ref={windowRef}
-            drag
-            dragMomentum={false}
-            dragListener={false}
-            dragElastic={0}
-            dragTransition={{ power: 0.2, timeConstant: 100 }}
             initial={false}
             animate={{
                 x: app.x,
@@ -315,31 +302,18 @@ const AppWindow = ({ app }) => {
                 ${isMaximized ? 'rounded-none' : 'rounded-2xl'}
             `}
             onClick={() => focusApp(app.id)}
-            onDragStart={() => {
-                setIsDragging(true);
-                focusApp(app.id);
-            }}
-            onDrag={(e, info) => {
-                // Update position in real-time while dragging
-                updateAppWindow(app.id, { 
-                    x: Math.max(0, app.x + info.delta.x), 
-                    y: Math.max(40, app.y + info.delta.y) 
-                });
-            }}
-            onDragEnd={(e, info) => {
-                setIsDragging(false);
-            }}
         >
             {/* Title Bar - Drag Handle */}
-            <div
+            <motion.div
                 className="h-10 bg-gradient-to-b from-[#3c3c3e] to-[#2c2c2e] flex items-center justify-between px-4 select-none cursor-move shrink-0 border-b border-white/5 group"
-                onPointerDown={(e) => {
-                    focusApp(app.id);
-                }}
                 drag
                 dragMomentum={false}
                 dragElastic={0}
-                dragTransition={{ power: 0.2, timeConstant: 100 }}
+                dragListener={true}
+                dragTransition={{ power: 0.2, timeConstant: 200 }}
+                onPointerDown={(e) => {
+                    focusApp(app.id);
+                }}
                 onDrag={(e, info) => {
                     if (!isMaximized) {
                         updateAppWindow(app.id, { 
@@ -374,7 +348,7 @@ const AppWindow = ({ app }) => {
                         {titles[app.appId] || 'App'}
                     </span>
                 </div>
-            </div>
+            </motion.div>
 
             {/* Content Area */}
             <div className="flex-1 overflow-auto bg-[#1c1c1e] text-white">
