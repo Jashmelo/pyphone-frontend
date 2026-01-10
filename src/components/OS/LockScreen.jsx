@@ -1,16 +1,91 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOS } from '../../context/OSContext';
-import { Lock, User } from 'lucide-react';
+import { Lock, User, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const LockScreen = () => {
-    const { login, register } = useOS();
+    const { login, register, suspension, logout, user } = useOS();
     const [mode, setMode] = useState('login'); // 'login' or 'register'
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false);
+    const [remainingTime, setRemainingTime] = useState(0);
+
+    // Update remaining suspension time
+    useEffect(() => {
+        if (!suspension || !user) return;
+        
+        const updateTime = () => {
+            const now = Date.now();
+            const remaining = Math.max(0, suspension.expireTime - now);
+            setRemainingTime(remaining);
+        };
+        
+        updateTime();
+        const interval = setInterval(updateTime, 1000);
+        return () => clearInterval(interval);
+    }, [suspension, user]);
+
+    const formatRemainingTime = (ms) => {
+        const seconds = Math.floor((ms / 1000) % 60);
+        const minutes = Math.floor((ms / (1000 * 60)) % 60);
+        const hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
+        const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+        
+        if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+        if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+        if (minutes > 0) return `${minutes}m ${seconds}s`;
+        return `${seconds}s`;
+    };
+
+    // If user is suspended, show suspension screen
+    if (user && suspension && remainingTime > 0) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen text-white z-50 relative">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-black/40 backdrop-blur-md p-8 rounded-2xl border border-red-500/20 w-96 shadow-2xl text-center"
+                >
+                    <div className="flex justify-center mb-6">
+                        <div className="bg-red-600/20 border border-red-500/30 p-4 rounded-full">
+                            <Lock size={40} className="text-red-500" />
+                        </div>
+                    </div>
+
+                    <h2 className="text-2xl font-bold text-red-400 mb-2">Account Temporarily Blocked</h2>
+                    <p className="text-xs text-gray-400 mb-6 uppercase tracking-wider">Kernel Access Restricted</p>
+
+                    <div className="bg-red-900/10 border border-red-500/20 rounded-lg p-4 mb-6 text-left">
+                        <p className="text-xs text-gray-300 mb-4">
+                            <span className="font-bold text-red-400">Reason:</span> {suspension.reason}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                            <span className="font-bold">Time Remaining:</span> <span className="text-yellow-400 font-mono">{formatRemainingTime(remainingTime)}</span>
+                        </p>
+                    </div>
+
+                    <div className="space-y-3">
+                        <p className="text-xs text-gray-500 italic">Your account will be automatically restored when the suspension period expires.</p>
+                        <button
+                            onClick={() => {
+                                logout();
+                                setMode('login');
+                                setUsername('');
+                                setPassword('');
+                            }}
+                            className="w-full bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg font-medium transition-colors"
+                        >
+                            Log Out
+                        </button>
+                    </div>
+                </motion.div>
+            </div>
+        );
+    }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -19,7 +94,7 @@ const LockScreen = () => {
 
         try {
             if (mode === 'login') {
-                const success = await login(username, password);
+                const success = await login(username, password, rememberMe);
                 if (!success) {
                     setError('Invalid credentials');
                 }
@@ -88,6 +163,18 @@ const LockScreen = () => {
                             onChange={e => setConfirmPassword(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500 transition-colors"
                         />
+                    )}
+
+                    {mode === 'login' && (
+                        <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-400 hover:text-gray-300">
+                            <input
+                                type="checkbox"
+                                checked={rememberMe}
+                                onChange={e => setRememberMe(e.target.checked)}
+                                className="w-4 h-4 accent-indigo-600 rounded cursor-pointer"
+                            />
+                            Remember me
+                        </label>
                     )}
 
                     {error && <p className="text-red-400 text-sm text-center">{error}</p>}
