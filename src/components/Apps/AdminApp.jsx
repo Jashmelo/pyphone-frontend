@@ -389,7 +389,7 @@ const AdminApp = () => {
 
     const menuItems = [
         { id: 'stats', label: 'Monitor', icon: BarChart3 },
-        { id: 'users', label: 'Users & Suspensions', icon: Users },
+        { id: 'users', label: 'Users', icon: Users },
         { id: 'feedback', label: 'Feedback', icon: Inbox },
         { id: 'apps', label: 'Apps', icon: AppWindow },
     ];
