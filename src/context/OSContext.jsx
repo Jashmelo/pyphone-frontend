@@ -26,7 +26,7 @@ export const OSProvider = ({ children }) => {
     const [activeApp, setActiveApp] = useState(null);
     const [time, setTime] = useState(new Date());
     const [deviceType, setDeviceType] = useState(getDeviceType());
-    const [suspension, setSuspension] = useState(null); // { reason, expireTime } for blocked accounts
+    const [suspension, setSuspension] = useState(null); // { reason, expireTime, suspended_at }
 
     // Load user from local storage and check suspension on mount
     useEffect(() => {
@@ -41,7 +41,7 @@ export const OSProvider = ({ children }) => {
                     // User is suspended - show suspension screen
                     setSuspension(suspensionData);
                     setUser(userData);
-                    setIsLocked(false); // Show suspension screen (not login screen)
+                    setIsLocked(false);
                 } else {
                     // User is not suspended - log them in
                     setUser(userData);
@@ -67,20 +67,26 @@ export const OSProvider = ({ children }) => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Check suspension status from backend - CRITICAL FIX
+    // Check suspension status from backend
     const checkSuspension = async (username) => {
         try {
             const res = await fetch(`${API_BASE_URL}/api/users/${username}/suspension`);
             if (res.ok) {
                 const data = await res.json();
-                // Check if user is suspended AND suspension hasn't expired
+                console.log('[checkSuspension] Response:', data);
+                
                 if (data.is_suspended && data.expire_time) {
                     const now = Date.now();
-                    // Parse the ISO string correctly
                     const expireTime = new Date(data.expire_time).getTime();
-                    if (now < expireTime) {
+                    const remaining = expireTime - now;
+                    
+                    console.log(`[checkSuspension] User ${username} suspended`);
+                    console.log(`[checkSuspension] Expire time (ISO): ${data.expire_time}`);
+                    console.log(`[checkSuspension] Expire time (ms): ${expireTime}`);
+                    console.log(`[checkSuspension] Time remaining: ${remaining}ms (${(remaining/1000).toFixed(0)}s)`);
+                    
+                    if (remaining > 0) {
                         // Suspension is still active
-                        console.log(`[Suspension] User ${username} suspended until ${new Date(expireTime).toISOString()}`);
                         return {
                             reason: data.reason || 'No reason provided',
                             expireTime: expireTime,
@@ -90,9 +96,9 @@ export const OSProvider = ({ children }) => {
                 }
             }
         } catch (err) {
-            console.error('Suspension check error:', err);
+            console.error('[checkSuspension] Error:', err);
         }
-        return null; // No suspension
+        return null;
     };
 
     const formatTime = () => {
@@ -106,7 +112,6 @@ export const OSProvider = ({ children }) => {
     };
 
     const login = async (username, password, rememberMe = false) => {
-        // Login function - handles suspension response from backend
         try {
             const response = await fetch(endpoints.login, {
                 method: 'POST',
@@ -115,24 +120,24 @@ export const OSProvider = ({ children }) => {
             });
             const data = await response.json();
 
-            // CRITICAL: Check for 403 (suspended) response FIRST
+            // Check for 403 (suspended) response
             if (response.status === 403) {
-                // Backend rejected login due to suspension
-                console.log('User suspended during login attempt');
+                console.log('[login] User suspended - 403 response');
                 const detail = data?.detail;
                 
                 if (typeof detail === 'object' && detail?.error === 'Account suspended') {
-                    // This is a suspension response
                     const userData = {
                         username: username,
                         settings: { clock_24h: true, wallpaper: 'neural' }
                     };
                     
-                    // Parse expireTime carefully
                     const expireTime = new Date(detail.expire_time).getTime();
-                    console.log(`[Login] User ${username} is suspended until ${new Date(expireTime).toISOString()}`);
-                    console.log(`[Login] Current time: ${new Date().toISOString()}`);
-                    console.log(`[Login] Time remaining: ${(expireTime - Date.now()) / 1000 / 60} minutes`);
+                    const remaining = expireTime - Date.now();
+                    
+                    console.log('[login] Setting suspension state');
+                    console.log(`[login] Expire time (ISO): ${detail.expire_time}`);
+                    console.log(`[login] Expire time (ms): ${expireTime}`);
+                    console.log(`[login] Time remaining: ${remaining}ms (${(remaining/1000).toFixed(0)}s)`);
                     
                     setSuspension({
                         reason: detail.reason || 'No reason provided',
@@ -140,19 +145,17 @@ export const OSProvider = ({ children }) => {
                         suspended_at: detail.suspended_at || new Date().toISOString()
                     });
                     setUser(userData);
-                    setIsLocked(false); // Show suspension screen
+                    setIsLocked(false);
                     
-                    // Store user data for persistence
                     localStorage.setItem('pyphone_user', JSON.stringify(userData));
                     localStorage.removeItem('pyphone_remember_me');
                     
-                    return 'suspended'; // Return special status for suspended users
+                    return 'suspended';
                 }
             }
             
             // Check for successful login (200)
             if (response.ok) {
-                // Password was correct, check if user is also suspended as backup
                 const userData = {
                     username: data.username,
                     settings: { clock_24h: true, wallpaper: 'neural' }
@@ -161,17 +164,14 @@ export const OSProvider = ({ children }) => {
                 // Check for suspension after successful password verification
                 const suspensionData = await checkSuspension(username);
                 if (suspensionData) {
-                    // User is suspended - keep them logged in but show suspension screen
                     setSuspension(suspensionData);
                     setUser(userData);
-                    setIsLocked(false); // Show suspension screen instead of unlocking
+                    setIsLocked(false);
                 } else {
-                    // User is not suspended - normal login
                     setUser(userData);
                     setIsLocked(false);
                 }
                 
-                // Save remember me preference
                 localStorage.setItem('pyphone_user', JSON.stringify(userData));
                 if (rememberMe) {
                     localStorage.setItem('pyphone_remember_me', 'true');
@@ -181,7 +181,6 @@ export const OSProvider = ({ children }) => {
                 
                 return true;
             } else {
-                // Login failed - regular authentication failure
                 console.error('Login failed:', data?.detail);
                 return false;
             }
@@ -205,6 +204,7 @@ export const OSProvider = ({ children }) => {
         setIsLocked(false);
         setApps([]);
         setMinimizedApps([]);
+        setSuspension(null);
         localStorage.setItem('pyphone_user', JSON.stringify(userData));
     };
 
@@ -215,6 +215,7 @@ export const OSProvider = ({ children }) => {
         };
         setUser(originalAdmin);
         setTrueAdmin(null);
+        setSuspension(null);
         sessionStorage.removeItem('true_admin');
         setApps([]);
         setMinimizedApps([]);
