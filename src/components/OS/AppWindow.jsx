@@ -93,8 +93,8 @@ const AppWindow = ({ app }) => {
         const shorterApps = ['messages', 'friends', 'nexus', 'studio', 'settings', 'admin'];
         let y;
         if (shorterApps.includes(app.appId)) {
-            // Position at bottom with 20px margin from bottom and 20px for dock
-            y = window.innerHeight - defaultSize.h - 100;
+            // Position at bottom with 60px margin from bottom (less than 100) for dock clearance
+            y = window.innerHeight - defaultSize.h - 60;
         } else {
             // Center vertically for other apps
             y = Math.max(60, (window.innerHeight - defaultSize.h) / 2);
