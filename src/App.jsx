@@ -58,17 +58,20 @@ const MobileHome = () => {
 };
 
 const Desktop = () => {
-    const { apps, formattedTime } = useOS();
+    const { apps, formattedTime, fullscreenAppId } = useOS();
+    const isAnyAppFullscreen = fullscreenAppId !== null;
 
     return (
         <div className="relative h-screen w-screen overflow-hidden">
-            {/* Status Bar (Simplistic) */}
-            <div className="absolute top-0 w-full h-8 bg-black/20 backdrop-blur-sm flex justify-between items-center px-4 text-white text-xs z-40">
-                <span>PyPhone Web OS</span>
-                <span>{formattedTime}</span>
-            </div>
+            {/* Status Bar (Hidden when fullscreen) */}
+            {!isAnyAppFullscreen && (
+                <div className="absolute top-0 w-full h-8 bg-black/20 backdrop-blur-sm flex justify-between items-center px-4 text-white text-xs z-40">
+                    <span>PyPhone Web OS</span>
+                    <span>{formattedTime}</span>
+                </div>
+            )}
 
-            <div className="relative z-0 h-full w-full">
+            <div className={`relative z-0 h-full w-full ${isAnyAppFullscreen ? '' : 'pt-8'}`}>
                 <AnimatePresence>
                     {apps.map(app => (
                         <AppWindow key={app.id} app={app} />
