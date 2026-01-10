@@ -17,38 +17,38 @@ import ChessGame from '../Apps/ChessGame';
 const APP_SIZES = {
     mobile: {
         notes: { w: 320, h: 480 },
-        messages: { w: 320, h: 600 },
-        friends: { w: 320, h: 550 },
+        messages: { w: 320, h: 400 },
+        friends: { w: 320, h: 400 },
         games: { w: 320, h: 600 },
         utils: { w: 320, h: 480 },
-        settings: { w: 320, h: 600 },
-        admin: { w: 320, h: 600 },
-        studio: { w: 320, h: 700 },
-        nexus: { w: 320, h: 600 },
+        settings: { w: 320, h: 400 },
+        admin: { w: 320, h: 400 },
+        studio: { w: 320, h: 400 },
+        nexus: { w: 320, h: 400 },
         chess: { w: 320, h: 650 }
     },
     tablet: {
         notes: { w: 600, h: 600 },
-        messages: { w: 700, h: 750 },
-        friends: { w: 650, h: 700 },
+        messages: { w: 700, h: 500 },
+        friends: { w: 650, h: 500 },
         games: { w: 750, h: 750 },
         utils: { w: 600, h: 600 },
-        settings: { w: 700, h: 700 },
-        admin: { w: 800, h: 750 },
-        studio: { w: 1000, h: 850 },
-        nexus: { w: 800, h: 750 },
+        settings: { w: 700, h: 500 },
+        admin: { w: 800, h: 500 },
+        studio: { w: 1000, h: 500 },
+        nexus: { w: 800, h: 500 },
         chess: { w: 650, h: 750 }
     },
     desktop: {
         notes: { w: 900, h: 700 },
-        messages: { w: 1000, h: 800 },
-        friends: { w: 950, h: 800 },
+        messages: { w: 1000, h: 550 },
+        friends: { w: 950, h: 550 },
         games: { w: 1100, h: 850 },
         utils: { w: 900, h: 700 },
-        settings: { w: 1000, h: 800 },
-        admin: { w: 1200, h: 850 },
-        studio: { w: 1400, h: 900 },
-        nexus: { w: 1100, h: 850 },
+        settings: { w: 1000, h: 550 },
+        admin: { w: 1200, h: 550 },
+        studio: { w: 1400, h: 550 },
+        nexus: { w: 1100, h: 550 },
         chess: { w: 900, h: 850 }
     }
 };
@@ -86,9 +86,19 @@ const AppWindow = ({ app }) => {
     useEffect(() => {
         const defaultSize = APP_SIZES[deviceType]?.[app.appId] || APP_SIZES.desktop[app.appId] || { w: 800, h: 600 };
         
-        // Center the window
+        // Center the window horizontally
         const x = (window.innerWidth - defaultSize.w) / 2;
-        const y = Math.max(60, (window.innerHeight - defaultSize.h) / 2);
+        
+        // For shorter apps, position at bottom
+        const shorterApps = ['messages', 'friends', 'nexus', 'studio', 'settings', 'admin'];
+        let y;
+        if (shorterApps.includes(app.appId)) {
+            // Position at bottom with 20px margin from bottom and 20px for dock
+            y = window.innerHeight - defaultSize.h - 100;
+        } else {
+            // Center vertically for other apps
+            y = Math.max(60, (window.innerHeight - defaultSize.h) / 2);
+        }
         
         updateAppWindow(app.id, {
             width: defaultSize.w,
