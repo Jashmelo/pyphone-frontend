@@ -4,7 +4,7 @@ import { Lock, User, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const LockScreen = () => {
-    const { login, register, suspension, logout, user } = useOS();
+    const { login, register, suspension, logout, user, isLocked } = useOS();
     const [mode, setMode] = useState('login'); // 'login' or 'register'
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -48,7 +48,8 @@ const LockScreen = () => {
     };
 
     // If user is suspended, show suspension warning screen
-    if (user && suspension && remainingTime > 0) {
+    // CRITICAL: Check that user AND suspension both exist, and isLocked is false (meaning we're showing desktop screens)
+    if (user && suspension && remainingTime > 0 && !isLocked) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen text-white z-50 relative bg-gradient-to-br from-slate-900 via-red-900/30 to-slate-900">
                 <motion.div
@@ -134,7 +135,7 @@ const LockScreen = () => {
         );
     }
 
-    // Normal login/register screen
+    // Normal login/register screen (only show when isLocked is true)
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -142,16 +143,13 @@ const LockScreen = () => {
 
         try {
             if (mode === 'login') {
-                const success = await login(username, password, rememberMe);
-                if (!success) {
-                    // Check if suspension screen is showing (login function handles it)
-                    if (suspension) {
-                        // Suspension screen will appear automatically
-                        setPassword('');
-                    } else {
-                        // Regular auth failure
-                        setError('Invalid username or password');
-                    }
+                const result = await login(username, password, rememberMe);
+                if (result === 'suspended') {
+                    // Suspension screen will auto-show
+                    setPassword('');
+                } else if (!result) {
+                    // Regular auth failure
+                    setError('Invalid username or password');
                 }
             } else {
                 if (password !== confirmPassword) {
