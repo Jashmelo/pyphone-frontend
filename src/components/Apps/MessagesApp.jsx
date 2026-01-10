@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, User, Plus, X, MessageCircle, ChevronRight, Hash, Paperclip, Image as ImageIcon, File as FileIcon, Download, Loader2, ChevronLeft } from 'lucide-react';
+import { Send, User, Plus, X, MessageCircle, ChevronRight, Hash, Paperclip, Image as ImageIcon, File as FileIcon, Download, Loader2, ChevronLeft, Trash2, MoreVertical } from 'lucide-react';
 import { useOS } from '../../context/OSContext';
 import { endpoints, API_BASE_URL } from '../../config';
 
@@ -13,6 +13,8 @@ const MessagesApp = () => {
     const [searchResults, setSearchResults] = useState([]);
     const [uploading, setUploading] = useState(false);
     const [showChatList, setShowChatList] = useState(true);
+    const [messageMenu, setMessageMenu] = useState(null);
+    const [confirmDeleteChat, setConfirmDeleteChat] = useState(false);
 
     const fileInputRef = useRef(null);
     const scrollRef = useRef(null);
@@ -87,7 +89,8 @@ const MessagesApp = () => {
                 content: content,
                 attachment_url: attachment?.url || null,
                 attachment_type: attachment?.type || null,
-                timestamp: new Date().toLocaleTimeString()
+                timestamp: new Date().toLocaleTimeString(),
+                id: Date.now() // Add unique ID for deletion
             };
             setMessages(prev => [...prev, newMsg]);
             setInput('');
@@ -117,6 +120,24 @@ const MessagesApp = () => {
         } finally {
             setUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const deleteMessage = (messageId) => {
+        setMessages(prev => prev.filter(msg => msg.id !== messageId));
+        // TODO: Send delete request to backend
+        setMessageMenu(null);
+    };
+
+    const deleteChat = () => {
+        if (targetUser) {
+            setMessages(prev => prev.filter(msg => 
+                !((msg.from === targetUser && msg.to === user?.username) ||
+                  (msg.from === user?.username && msg.to === targetUser))
+            ));
+            setTargetUser(null);
+            setShowChatList(true);
+            setConfirmDeleteChat(false);
         }
     };
 
@@ -267,18 +288,57 @@ const MessagesApp = () => {
                         <p className="font-bold text-xs">@{targetUser}</p>
                         <p className="text-[8px] text-indigo-400 uppercase tracking-widest mt-0.5">End-to-End Encrypted</p>
                     </div>
-                    <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-black shadow-lg">
-                        {targetUser[0].toUpperCase()}
-                    </div>
+                    <button onClick={() => setConfirmDeleteChat(true)} className="p-1.5 text-red-400 hover:text-red-300 transition-colors">
+                        <Trash2 size={16} />
+                    </button>
                 </div>
+
+                {confirmDeleteChat && (
+                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 pointer-events-auto">
+                        <div className="bg-[#2c2c2e] border border-white/10 rounded-xl p-6 max-w-sm mx-4 shadow-2xl">
+                            <h3 className="text-lg font-bold mb-2 text-white">Delete Chat?</h3>
+                            <p className="text-gray-400 mb-6">This will delete all messages with <span className="font-semibold text-white">@{targetUser}</span>. This cannot be undone.</p>
+                            <div className="flex gap-3 justify-end">
+                                <button
+                                    onClick={() => setConfirmDeleteChat(false)}
+                                    className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg font-medium transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={deleteChat}
+                                    className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg font-medium transition-colors"
+                                >
+                                    Delete Chat
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div ref={scrollRef} className="flex-1 p-3 overflow-y-auto flex flex-col gap-3 no-scrollbar">
                     {activeMessages.map((msg, idx) => (
-                        <div key={idx} className={`flex ${msg.from === user?.username ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                            <div className={`p-2.5 px-3 rounded-xl max-w-[80%] text-sm shadow-md ${msg.from === user?.username ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-[#2c2c2e] text-gray-100 rounded-tl-none border border-white/10'}`}>
+                        <div key={idx} className={`flex ${msg.from === user?.username ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300 group`}>
+                            <div className={`relative p-2.5 px-3 rounded-xl max-w-[80%] text-sm shadow-md ${msg.from === user?.username ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-[#2c2c2e] text-gray-100 rounded-tl-none border border-white/10'}`}>
                                 <p className="text-sm leading-relaxed break-words">{msg.content}</p>
                                 {renderAttachment(msg)}
                                 <span className={`text-[8px] block mt-1.5 font-mono uppercase ${msg.from === user?.username ? 'text-indigo-200/50' : 'text-gray-500'}`}>{msg.timestamp}</span>
+                                {msg.from === user?.username && (
+                                    <button
+                                        onClick={() => setMessageMenu(messageMenu === idx ? null : idx)}
+                                        className="absolute -right-7 top-1 p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10 rounded"
+                                    >
+                                        <Trash2 size={12} className="text-red-400" />
+                                    </button>
+                                )}
+                                {messageMenu === idx && msg.from === user?.username && (
+                                    <button
+                                        onClick={() => deleteMessage(msg.id)}
+                                        className="absolute -right-8 top-7 bg-red-600 hover:bg-red-500 p-1 rounded text-xs text-white"
+                                    >
+                                        Delete
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))}
@@ -324,7 +384,7 @@ const MessagesApp = () => {
         );
     }
 
-    // Desktop View - Original layout
+    // Desktop View
     return (
         <div className="flex h-full bg-[#1c1c1e] text-white">
             {/* Sidebar */}
@@ -411,15 +471,50 @@ const MessagesApp = () => {
                                     <p className="text-[9px] text-indigo-400 uppercase tracking-widest mt-0.5">End-to-End Encrypted</p>
                                 </div>
                             </div>
+                            <button onClick={() => setConfirmDeleteChat(true)} className="p-2 text-red-400 hover:text-red-300 hover:bg-red-600/10 rounded-lg transition-colors">
+                                <Trash2 size={18} />
+                            </button>
                         </div>
+
+                        {confirmDeleteChat && (
+                            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 pointer-events-auto">
+                                <div className="bg-[#2c2c2e] border border-white/10 rounded-xl p-6 max-w-sm mx-4 shadow-2xl">
+                                    <h3 className="text-lg font-bold mb-2 text-white">Delete Chat?</h3>
+                                    <p className="text-gray-400 mb-6">This will delete all messages with <span className="font-semibold text-white">@{targetUser}</span>. This cannot be undone.</p>
+                                    <div className="flex gap-3 justify-end">
+                                        <button
+                                            onClick={() => setConfirmDeleteChat(false)}
+                                            className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg font-medium transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={deleteChat}
+                                            className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg font-medium transition-colors"
+                                        >
+                                            Delete Chat
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         <div ref={scrollRef} className="flex-1 p-6 overflow-y-auto flex flex-col gap-4 no-scrollbar">
                             {activeMessages.map((msg, idx) => (
-                                <div key={idx} className={`flex ${msg.from === user?.username ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                                    <div className={`p-3 px-4 rounded-2xl max-w-[75%] shadow-md ${msg.from === user?.username ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-[#2c2c2e] text-gray-100 rounded-tl-none border border-white/10'}`}>
+                                <div key={idx} className={`flex ${msg.from === user?.username ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300 group`}>
+                                    <div className={`relative p-3 px-4 rounded-2xl max-w-[75%] shadow-md ${msg.from === user?.username ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-[#2c2c2e] text-gray-100 rounded-tl-none border border-white/10'}`}>
                                         <p className="text-[15px] leading-relaxed break-words">{msg.content}</p>
                                         {renderAttachment(msg)}
                                         <span className={`text-[8px] block mt-2 font-mono uppercase ${msg.from === user?.username ? 'text-indigo-200/50' : 'text-gray-500'}`}>{msg.timestamp}</span>
+                                        {msg.from === user?.username && (
+                                            <button
+                                                onClick={() => deleteMessage(msg.id)}
+                                                className="absolute -right-8 top-0 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-600/10 rounded text-red-400 hover:text-red-300"
+                                                title="Delete message"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             ))}
