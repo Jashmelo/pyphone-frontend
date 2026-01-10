@@ -28,7 +28,7 @@ export const OSProvider = ({ children }) => {
     const [deviceType, setDeviceType] = useState(getDeviceType());
     const [suspension, setSuspension] = useState(null); // { reason, expireTime } for blocked accounts
 
-    // Load user from local storage and check suspension
+    // Load user from local storage and check suspension on mount
     useEffect(() => {
         const saved = localStorage.getItem('pyphone_user');
         const rememberMe = localStorage.getItem('pyphone_remember_me') === 'true';
@@ -38,10 +38,12 @@ export const OSProvider = ({ children }) => {
             // Check if account is suspended
             checkSuspension(userData.username).then(suspensionData => {
                 if (suspensionData) {
+                    // User is suspended - show suspension screen
                     setSuspension(suspensionData);
                     setUser(userData);
-                    setIsLocked(false);
+                    setIsLocked(false); // Show suspension screen (not login screen)
                 } else {
+                    // User is not suspended - log them in
                     setUser(userData);
                     setIsLocked(false);
                 }
@@ -49,8 +51,10 @@ export const OSProvider = ({ children }) => {
         } else if (saved) {
             // Clear saved user if remember me is not enabled
             localStorage.removeItem('pyphone_user');
+            setIsLocked(true);
+        } else {
+            setIsLocked(true);
         }
-        setIsLocked(!rememberMe);
 
         const timer = setInterval(() => setTime(new Date()), 1000);
         return () => clearInterval(timer);
@@ -63,15 +67,16 @@ export const OSProvider = ({ children }) => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Check suspension status periodically
+    // Check suspension status periodically for logged-in suspended users
     useEffect(() => {
         if (!user || !suspension) return;
         
         const interval = setInterval(() => {
             const now = Date.now();
             if (now >= suspension.expireTime) {
-                // Suspension has expired
+                // Suspension has expired - auto-logout
                 setSuspension(null);
+                logout();
             }
         }, 1000);
         
@@ -79,22 +84,29 @@ export const OSProvider = ({ children }) => {
     }, [user, suspension]);
 
     const checkSuspension = async (username) => {
+        """Check suspension status from backend - CRITICAL FIX"""
         try {
             const res = await fetch(`${API_BASE_URL}/api/users/${username}/suspension`);
             if (res.ok) {
                 const data = await res.json();
+                // Check if user is suspended AND suspension hasn't expired
                 if (data.is_suspended && data.expire_time) {
                     const now = Date.now();
                     const expireTime = new Date(data.expire_time).getTime();
                     if (now < expireTime) {
-                        return { reason: data.reason || 'No reason provided', expireTime };
+                        // Suspension is still active
+                        return {
+                            reason: data.reason || 'No reason provided',
+                            expireTime: expireTime,
+                            suspended_at: data.suspended_at
+                        };
                     }
                 }
             }
         } catch (err) {
             console.error('Suspension check error:', err);
         }
-        return null;
+        return null; // No suspension
     };
 
     const formatTime = () => {
@@ -108,6 +120,7 @@ export const OSProvider = ({ children }) => {
     };
 
     const login = async (username, password, rememberMe = false) => {
+        """Login function - handles suspension response from backend"""
         try {
             const response = await fetch(endpoints.login, {
                 method: 'POST',
@@ -122,14 +135,18 @@ export const OSProvider = ({ children }) => {
                     settings: { clock_24h: true, wallpaper: 'neural' }
                 };
                 
-                // Check for suspension
+                // Check for suspension after successful password verification
                 const suspensionData = await checkSuspension(username);
                 if (suspensionData) {
+                    // User is suspended - keep them logged in but show suspension screen
                     setSuspension(suspensionData);
+                    setUser(userData);
+                    setIsLocked(false); // Show suspension screen instead of unlocking
+                } else {
+                    // User is not suspended - normal login
+                    setUser(userData);
+                    setIsLocked(false);
                 }
-
-                setUser(userData);
-                setIsLocked(false);
                 
                 // Save remember me preference
                 localStorage.setItem('pyphone_user', JSON.stringify(userData));
@@ -140,8 +157,12 @@ export const OSProvider = ({ children }) => {
                 }
                 
                 return true;
+            } else {
+                // Handle backend rejection (may include suspension info)
+                const errorMsg = data?.detail?.error || data?.detail || 'Login failed';
+                console.error('Login failed:', errorMsg);
+                return false;
             }
-            return false;
         } catch (error) {
             console.error("Login Error:", error);
             return false;
