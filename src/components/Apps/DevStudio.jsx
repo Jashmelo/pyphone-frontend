@@ -23,6 +23,7 @@ const DevStudio = () => {
     const [autoRun, setAutoRun] = useState(true);
     const aiScrollRef = useRef(null);
     const autoRunTimerRef = useRef(null);
+    const previewRef = useRef(null);
 
     const languages = [
         { id: 'javascript', name: 'JavaScript', ext: 'js', default: '// Write your JavaScript app here\nconsole.log("Hello from PyPhone OS!")\n\n// Example: Create a styled div\nconst container = document.createElement(\'div\')\ncontainer.style.cssText = "padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px; text-align: center;"\ncontainer.innerHTML = \'<h1>Interactive App</h1><p>Edit code and click Run</p>\'\ndocument.body.innerHTML = ""\ndocument.body.appendChild(container)' },
@@ -351,8 +352,8 @@ const DevStudio = () => {
                             </div>
 
                             <div className={`flex flex-col bg-slate-900/20 transition-all ${aiOpen ? 'w-1/3 border-r border-slate-800' : 'w-1/2'}`}>
-                                <div className="bg-slate-900 px-4 py-1 text-[10px] text-slate-500 font-mono border-b border-slate-800">PREVIEW</div>
-                                <div className="flex-1 m-4 bg-white dark:bg-slate-950 rounded-xl shadow-2xl overflow-auto border border-slate-800/50">
+                                <div className="bg-slate-900 px-4 py-1 text-[10px] text-slate-500 font-mono border-b border-slate-800">OUTPUT</div>
+                                <div ref={previewRef} className="flex-1 m-4 bg-white dark:bg-slate-950 rounded-xl shadow-2xl overflow-auto border border-slate-800/50">
                                     {preview ? <div dangerouslySetInnerHTML={{ __html: preview }} /> : <div className="h-full flex items-center justify-center text-slate-700 uppercase font-black text-xs opacity-20 tracking-[1em]">Ready</div>}
                                 </div>
                             </div>
