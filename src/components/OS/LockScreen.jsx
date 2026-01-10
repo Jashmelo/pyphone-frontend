@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useOS } from '../../context/OSContext';
-import { Lock, User, CheckCircle2 } from 'lucide-react';
+import { Lock, User, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const LockScreen = () => {
@@ -14,7 +14,7 @@ const LockScreen = () => {
     const [rememberMe, setRememberMe] = useState(false);
     const [remainingTime, setRemainingTime] = useState(0);
 
-    // Update remaining suspension time
+    // Update remaining suspension time every second
     useEffect(() => {
         if (!suspension || !user) return;
         
@@ -29,64 +29,112 @@ const LockScreen = () => {
         return () => clearInterval(interval);
     }, [suspension, user]);
 
+    // Format milliseconds to readable time format
     const formatRemainingTime = (ms) => {
+        if (ms <= 0) return 'Expired';
+        
         const seconds = Math.floor((ms / 1000) % 60);
         const minutes = Math.floor((ms / (1000 * 60)) % 60);
         const hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
         const days = Math.floor(ms / (1000 * 60 * 60 * 24));
         
-        if (days > 0) return `${days}d ${hours}h ${minutes}m`;
-        if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
-        if (minutes > 0) return `${minutes}m ${seconds}s`;
-        return `${seconds}s`;
+        const parts = [];
+        if (days > 0) parts.push(`${days}d`);
+        if (hours > 0) parts.push(`${hours}h`);
+        if (minutes > 0) parts.push(`${minutes}m`);
+        if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
+        
+        return parts.join(' ');
     };
 
-    // If user is suspended, show suspension screen
+    // If user is suspended, show suspension warning screen
     if (user && suspension && remainingTime > 0) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen text-white z-50 relative">
+            <div className="flex flex-col items-center justify-center min-h-screen text-white z-50 relative bg-gradient-to-br from-slate-900 via-red-900/30 to-slate-900">
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-black/40 backdrop-blur-md p-8 rounded-2xl border border-red-500/20 w-96 shadow-2xl text-center"
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.4 }}
+                    className="bg-slate-950/80 backdrop-blur-xl p-8 rounded-2xl border border-red-500/50 w-96 shadow-2xl text-center"
                 >
+                    {/* Warning Icon */}
                     <div className="flex justify-center mb-6">
-                        <div className="bg-red-600/20 border border-red-500/30 p-4 rounded-full">
-                            <Lock size={40} className="text-red-500" />
+                        <motion.div
+                            animate={{ scale: [1, 1.05, 1] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                            className="bg-red-600/30 border border-red-500/60 p-4 rounded-full"
+                        >
+                            <AlertTriangle size={48} className="text-red-400" strokeWidth={1.5} />
+                        </motion.div>
+                    </div>
+
+                    {/* Title */}
+                    <h2 className="text-3xl font-bold text-red-400 mb-1">Account Temporarily Blocked</h2>
+                    <p className="text-xs text-gray-400 mb-6 uppercase tracking-wider font-semibold">⚠️ Kernel Access Restricted</p>
+
+                    {/* Suspension Details Box */}
+                    <div className="bg-red-900/20 border border-red-500/40 rounded-lg p-5 mb-6 text-left space-y-4">
+                        {/* Username */}
+                        <div>
+                            <p className="text-xs text-gray-400 uppercase tracking-widest">Username</p>
+                            <p className="text-sm text-white font-mono mt-1">@{user.username}</p>
+                        </div>
+
+                        {/* Reason */}
+                        <div>
+                            <p className="text-xs text-gray-400 uppercase tracking-widest">Suspension Reason</p>
+                            <p className="text-sm text-red-300 mt-1 italic">"{suspension.reason}"</p>
+                        </div>
+
+                        {/* Time Remaining */}
+                        <div>
+                            <p className="text-xs text-gray-400 uppercase tracking-widest">Time Remaining</p>
+                            <motion.div
+                                key={remainingTime}
+                                initial={{ opacity: 0.5 }}
+                                animate={{ opacity: 1 }}
+                                className="text-xl text-yellow-300 font-mono font-bold mt-1"
+                            >
+                                {formatRemainingTime(remainingTime)}
+                            </motion.div>
+                        </div>
+
+                        {/* Suspended At */}
+                        <div>
+                            <p className="text-xs text-gray-400 uppercase tracking-widest">Suspended At</p>
+                            <p className="text-xs text-gray-500 mt-1 font-mono">
+                                {suspension.suspended_at ? new Date(suspension.suspended_at).toLocaleString() : 'Unknown'}
+                            </p>
                         </div>
                     </div>
 
-                    <h2 className="text-2xl font-bold text-red-400 mb-2">Account Temporarily Blocked</h2>
-                    <p className="text-xs text-gray-400 mb-6 uppercase tracking-wider">Kernel Access Restricted</p>
-
-                    <div className="bg-red-900/10 border border-red-500/20 rounded-lg p-4 mb-6 text-left">
-                        <p className="text-xs text-gray-300 mb-4">
-                            <span className="font-bold text-red-400">Reason:</span> {suspension.reason}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                            <span className="font-bold">Time Remaining:</span> <span className="text-yellow-400 font-mono">{formatRemainingTime(remainingTime)}</span>
+                    {/* Info Message */}
+                    <div className="bg-gray-900/50 border border-gray-700/50 rounded-lg p-4 mb-6">
+                        <p className="text-xs text-gray-300 leading-relaxed">
+                            Your account has been temporarily suspended. You will regain access once the suspension period expires. Please try again later.
                         </p>
                     </div>
 
-                    <div className="space-y-3">
-                        <p className="text-xs text-gray-500 italic">Your account will be automatically restored when the suspension period expires.</p>
-                        <button
-                            onClick={() => {
-                                logout();
-                                setMode('login');
-                                setUsername('');
-                                setPassword('');
-                            }}
-                            className="w-full bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg font-medium transition-colors"
-                        >
-                            Log Out
-                        </button>
-                    </div>
+                    {/* Log Out Button */}
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                            logout();
+                            setMode('login');
+                            setUsername('');
+                            setPassword('');
+                        }}
+                        className="w-full bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 text-white py-3 rounded-lg font-semibold transition-all duration-200 uppercase text-sm tracking-wider"
+                    >
+                        Log Out
+                    </motion.button>
                 </motion.div>
             </div>
         );
     }
 
+    // Normal login/register screen
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -96,7 +144,7 @@ const LockScreen = () => {
             if (mode === 'login') {
                 const success = await login(username, password, rememberMe);
                 if (!success) {
-                    setError('Invalid credentials');
+                    setError('Invalid username or password');
                 }
             } else {
                 if (password !== confirmPassword) {
@@ -111,11 +159,11 @@ const LockScreen = () => {
                     setPassword('');
                     setConfirmPassword('');
                 } else {
-                    setError('Registration failed (User exists?)');
+                    setError('Registration failed - user may already exist');
                 }
             }
         } catch (err) {
-            setError('An error occurred. check connection.');
+            setError('Connection error - please check your network');
         } finally {
             setIsLoading(false);
         }
@@ -177,12 +225,22 @@ const LockScreen = () => {
                         </label>
                     )}
 
-                    {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+                    {error && (
+                        <motion.p
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="text-red-400 text-sm text-center"
+                        >
+                            {error}
+                        </motion.p>
+                    )}
 
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className={`w-full py-2 rounded-lg font-medium transition-colors ${isLoading ? 'bg-indigo-600/50 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500'}`}
+                        className={`w-full py-2 rounded-lg font-medium transition-colors ${
+                            isLoading ? 'bg-indigo-600/50 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500'
+                        }`}
                     >
                         {isLoading ? 'Processing...' : (mode === 'login' ? 'Unlock' : 'Register')}
                     </button>
