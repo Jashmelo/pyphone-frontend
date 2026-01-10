@@ -62,6 +62,7 @@ const AppWindow = ({ app }) => {
     const [appBarVisible, setAppBarVisible] = useState(true);
     const isActive = activeApp === app.id;
     const windowRef = useRef(null);
+    const dragStartPos = useRef(null);
 
     // Detect device type on mount and on resize
     useEffect(() => {
@@ -204,6 +205,51 @@ const AppWindow = ({ app }) => {
         closeApp(app.id);
     };
 
+    // Handle window dragging with instant feedback and boundary constraints
+    const handleTitleBarMouseDown = (e) => {
+        if (isMaximized || e.button !== 0) return; // Only left mouse button
+        e.preventDefault();
+        focusApp(app.id);
+        
+        dragStartPos.current = {
+            mouseX: e.clientX,
+            mouseY: e.clientY,
+            windowX: app.x,
+            windowY: app.y
+        };
+
+        const onMouseMove = (moveEvent) => {
+            if (!dragStartPos.current) return;
+
+            const deltaX = moveEvent.clientX - dragStartPos.current.mouseX;
+            const deltaY = moveEvent.clientY - dragStartPos.current.mouseY;
+
+            let newX = dragStartPos.current.windowX + deltaX;
+            let newY = dragStartPos.current.windowY + deltaY;
+
+            // Apply boundary constraints
+            // Left boundary: cannot go past 0
+            newX = Math.max(0, newX);
+            // Right boundary: window right edge cannot go past screen right
+            newX = Math.min(newX, window.innerWidth - app.width);
+            // Top boundary: cannot go above 40px (app bar height)
+            newY = Math.max(40, newY);
+            // Bottom boundary: window bottom edge cannot go past screen bottom
+            newY = Math.min(newY, window.innerHeight - app.height);
+
+            updateAppWindow(app.id, { x: newX, y: newY });
+        };
+
+        const onMouseUp = () => {
+            dragStartPos.current = null;
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    };
+
     const handleResize = (e, direction) => {
         e.preventDefault();
         e.stopPropagation();
@@ -285,41 +331,25 @@ const AppWindow = ({ app }) => {
     }
 
     return (
-        <motion.div
+        <div
             ref={windowRef}
-            drag={!isMaximized}
-            dragMomentum={false}
-            dragElastic={0}
-            dragListener={true}
-            dragConstraints={{
-                left: 0,
-                top: 40,
-                right: window.innerWidth - app.width,
-                bottom: window.innerHeight - app.height
-            }}
-            onDragStart={() => focusApp(app.id)}
-            onDrag={(e, info) => {
-                if (!isMaximized) {
-                    updateAppWindow(app.id, { 
-                        x: Math.max(0, app.x + info.delta.x), 
-                        y: Math.max(40, app.y + info.delta.y) 
-                    });
-                }
-            }}
             style={{
-                x: app.x,
-                y: app.y,
-                width: app.width,
-                height: app.height
+                position: 'absolute',
+                left: `${app.x}px`,
+                top: `${app.y}px`,
+                width: `${app.width}px`,
+                height: `${app.height}px`,
+                zIndex: isActive ? 50 : 10
             }}
-            className={`absolute bg-[#1c1c1e] rounded-2xl overflow-hidden shadow-2xl border border-white/10 flex flex-col pointer-events-auto transition-all
-                ${isActive ? 'z-50 ring-2 ring-white/20' : 'z-10'}
+            className={`bg-[#1c1c1e] rounded-2xl overflow-hidden shadow-2xl border border-white/10 flex flex-col pointer-events-auto
+                ${isActive ? 'ring-2 ring-white/20' : ''}
                 ${isMaximized ? 'rounded-none' : 'rounded-2xl'}
             `}
             onClick={() => focusApp(app.id)}
         >
             {/* Title Bar */}
             <div
+                onMouseDown={handleTitleBarMouseDown}
                 className="h-10 bg-gradient-to-b from-[#3c3c3e] to-[#2c2c2e] flex items-center justify-between px-4 select-none cursor-move shrink-0 border-b border-white/5 group"
             >
                 <div className="flex gap-3 items-center">
@@ -386,7 +416,7 @@ const AppWindow = ({ app }) => {
                     />
                 </>
             )}
-        </motion.div>
+        </div>
     );
 };
 
