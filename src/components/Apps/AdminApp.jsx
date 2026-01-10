@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     ShieldAlert, Users, MessageCircle, Activity,
     Inbox, Trash2, ShieldCheck, ShieldX,
-    ChevronRight, BarChart3, AppWindow, UserCheck, ChevronLeft, Clock, AlertCircle
+    ChevronRight, BarChart3, AppWindow, UserCheck, ChevronLeft, Clock, AlertCircle, Search
 } from 'lucide-react';
 import { endpoints, API_BASE_URL } from '../../config';
 import { useOS } from '../../context/OSContext';
@@ -49,6 +49,7 @@ const UserManager = () => {
     const [loading, setLoading] = useState(true);
     const [suspendModal, setSuspendModal] = useState(null); // { username, hours, reason }
     const [suspensions, setSuspensions] = useState({});
+    const [searchQuery, setSearchQuery] = useState('');
     const { impersonate } = useOS();
 
     const fetchUsers = async () => {
@@ -111,11 +112,28 @@ const UserManager = () => {
         } catch (err) { console.error(err); }
     };
 
+    const filteredUsers = users.filter(u => 
+        u.username.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     if (loading) return <div className="text-indigo-400">Loading directory...</div>;
 
     return (
         <div className="space-y-4 animate-in fade-in duration-300">
-            <h3 className="text-xl font-bold text-white mb-6">User Registry & Suspension Manager</h3>
+            <h3 className="text-xl font-bold text-white mb-6">User Registry</h3>
+            
+            {/* Search Bar */}
+            <div className="relative mb-6">
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400" />
+                <input
+                    type="text"
+                    placeholder="Search users..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 pl-10 text-white focus:outline-none focus:border-indigo-500 transition-colors placeholder-gray-500"
+                />
+            </div>
+
             <div className="overflow-hidden border border-white/10 rounded-xl">
                 <table className="w-full text-left text-sm">
                     <thead className="bg-white/5 text-indigo-300 text-xs">
@@ -127,7 +145,7 @@ const UserManager = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5 text-gray-300 text-xs">
-                        {users.map(u => {
+                        {filteredUsers.map(u => {
                             const susp = suspensions[u.username];
                             const isSuspended = susp?.is_suspended;
                             return (
@@ -183,6 +201,10 @@ const UserManager = () => {
                     </tbody>
                 </table>
             </div>
+
+            {filteredUsers.length === 0 && (
+                <div className="text-center py-12 text-gray-600 italic">No users found matching "{searchQuery}"</div>
+            )}
 
             {/* Suspension Modal */}
             {suspendModal && (
