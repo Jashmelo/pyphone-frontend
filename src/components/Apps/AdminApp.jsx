@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import {
     ShieldAlert, Users, MessageCircle, Activity,
     Inbox, Trash2, ShieldCheck, ShieldX,
-    ChevronRight, BarChart3, AppWindow, UserCheck, ChevronLeft
+    ChevronRight, BarChart3, AppWindow, UserCheck, ChevronLeft, Clock, AlertCircle
 } from 'lucide-react';
-import { endpoints } from '../../config';
+import { endpoints, API_BASE_URL } from '../../config';
 import { useOS } from '../../context/OSContext';
 
 // Sub-component: Stats Dashboard
@@ -43,10 +43,12 @@ const StatsDashboard = ({ stats }) => (
     </div>
 );
 
-// Sub-component: User Manager
+// Sub-component: User Manager with Suspension Controls
 const UserManager = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [suspendModal, setSuspendModal] = useState(null); // { username, hours, reason }
+    const [suspensions, setSuspensions] = useState({});
     const { impersonate } = useOS();
 
     const fetchUsers = async () => {
@@ -55,7 +57,19 @@ const UserManager = () => {
             const data = await res.json();
             setUsers(data);
             setLoading(false);
+            // Fetch suspension data for all users
+            data.forEach(user => fetchSuspensionStatus(user.username));
         } catch (err) { console.error(err); setLoading(false); }
+    };
+
+    const fetchSuspensionStatus = async (username) => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/users/${username}/suspension`);
+            if (res.ok) {
+                const data = await res.json();
+                setSuspensions(prev => ({ ...prev, [username]: data }));
+            }
+        } catch (err) { console.error(err); }
     };
 
     useEffect(() => { fetchUsers(); }, []);
@@ -68,49 +82,159 @@ const UserManager = () => {
         } catch (err) { console.error(err); }
     };
 
+    const suspendUser = async () => {
+        if (!suspendModal.username || suspendModal.hours <= 0) return;
+        try {
+            const suspendUntil = new Date(Date.now() + suspendModal.hours * 60 * 60 * 1000);
+            await fetch(`${API_BASE_URL}/api/users/${suspendModal.username}/suspend`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    hours: suspendModal.hours,
+                    reason: suspendModal.reason || 'No reason provided',
+                    suspend_until: suspendUntil.toISOString()
+                })
+            });
+            setSuspendModal(null);
+            fetchSuspensionStatus(suspendModal.username);
+        } catch (err) { console.error(err); }
+    };
+
+    const unsuspendUser = async (username) => {
+        if (!window.confirm(`Remove suspension for @${username}?`)) return;
+        try {
+            await fetch(`${API_BASE_URL}/api/users/${username}/suspend`, {
+                method: 'DELETE'
+            });
+            fetchSuspensionStatus(username);
+            setSuspendModal(null);
+        } catch (err) { console.error(err); }
+    };
+
     if (loading) return <div className="text-indigo-400">Loading directory...</div>;
 
     return (
         <div className="space-y-4 animate-in fade-in duration-300">
-            <h3 className="text-xl font-bold text-white mb-6">User Registry</h3>
+            <h3 className="text-xl font-bold text-white mb-6">User Registry & Suspension Manager</h3>
             <div className="overflow-hidden border border-white/10 rounded-xl">
                 <table className="w-full text-left text-sm">
                     <thead className="bg-white/5 text-indigo-300 text-xs">
                         <tr>
                             <th className="p-3 md:p-4">Username</th>
                             <th className="p-3 md:p-4">Role</th>
+                            <th className="p-3 md:p-4">Status</th>
                             <th className="p-3 md:p-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5 text-gray-300 text-xs">
-                        {users.map(u => (
-                            <tr key={u.username} className="hover:bg-white/5 transition-colors">
-                                <td className="p-3 md:p-4 font-mono">@{u.username}</td>
-                                <td className="p-3 md:p-4">
-                                    <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-bold whitespace-nowrap ${u.is_admin ? 'bg-indigo-600 text-white' : 'bg-gray-600/50 text-gray-400'}`}>
-                                        {u.is_admin ? 'Admin' : 'User'}
-                                    </span>
-                                </td>
-                                <td className="p-3 md:p-4 text-right">
-                                    {u.username !== 'admin' && (
-                                        <div className="flex items-center justify-end gap-1 md:gap-2 flex-wrap">
-                                            <button
-                                                onClick={() => impersonate(u.username)}
-                                                className="text-indigo-400 hover:text-indigo-300 text-[8px] md:text-[10px] font-bold bg-indigo-500/10 px-2 md:px-3 py-1 md:py-1.5 rounded flex items-center gap-1 md:gap-2 border border-indigo-500/20 whitespace-nowrap"
-                                            >
-                                                <UserCheck size={12} /> CONTROL
-                                            </button>
-                                            <button onClick={() => deleteUser(u.username)} className="text-red-400 hover:text-red-300 p-1 md:p-2">
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </div>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
+                        {users.map(u => {
+                            const susp = suspensions[u.username];
+                            const isSuspended = susp?.is_suspended;
+                            return (
+                                <tr key={u.username} className={`hover:bg-white/5 transition-colors ${isSuspended ? 'bg-red-900/10' : ''}`}>
+                                    <td className="p-3 md:p-4 font-mono">@{u.username}</td>
+                                    <td className="p-3 md:p-4">
+                                        <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-bold whitespace-nowrap ${u.is_admin ? 'bg-indigo-600 text-white' : 'bg-gray-600/50 text-gray-400'}`}>
+                                            {u.is_admin ? 'Admin' : 'User'}
+                                        </span>
+                                    </td>
+                                    <td className="p-3 md:p-4">
+                                        {isSuspended ? (
+                                            <span className="flex items-center gap-1 text-red-400 text-[9px] uppercase font-bold">
+                                                <Clock size={12} /> Suspended
+                                            </span>
+                                        ) : (
+                                            <span className="text-green-400 text-[9px] uppercase font-bold">Active</span>
+                                        )}
+                                    </td>
+                                    <td className="p-3 md:p-4 text-right">
+                                        {u.username !== 'admin' && (
+                                            <div className="flex items-center justify-end gap-1 md:gap-2 flex-wrap">
+                                                <button
+                                                    onClick={() => impersonate(u.username)}
+                                                    className="text-indigo-400 hover:text-indigo-300 text-[8px] md:text-[10px] font-bold bg-indigo-500/10 px-2 md:px-3 py-1 md:py-1.5 rounded flex items-center gap-1 md:gap-2 border border-indigo-500/20 whitespace-nowrap"
+                                                >
+                                                    <UserCheck size={12} /> CONTROL
+                                                </button>
+                                                {isSuspended ? (
+                                                    <button
+                                                        onClick={() => unsuspendUser(u.username)}
+                                                        className="text-green-400 hover:text-green-300 text-[8px] md:text-[10px] font-bold bg-green-500/10 px-2 md:px-3 py-1 md:py-1.5 rounded flex items-center gap-1 md:gap-2 border border-green-500/20 whitespace-nowrap"
+                                                    >
+                                                        <ShieldCheck size={12} /> UNSUSPEND
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setSuspendModal({ username: u.username, hours: 1, reason: '' })}
+                                                        className="text-yellow-400 hover:text-yellow-300 text-[8px] md:text-[10px] font-bold bg-yellow-600/10 px-2 md:px-3 py-1 md:py-1.5 rounded flex items-center gap-1 md:gap-2 border border-yellow-500/20 whitespace-nowrap"
+                                                    >
+                                                        <Clock size={12} /> SUSPEND
+                                                    </button>
+                                                )}
+                                                <button onClick={() => deleteUser(u.username)} className="text-red-400 hover:text-red-300 p-1 md:p-2">
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
+
+            {/* Suspension Modal */}
+            {suspendModal && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                    <div className="bg-[#1c1c1e] border border-yellow-500/20 rounded-2xl p-6 max-w-md w-full">
+                        <div className="flex items-center gap-3 mb-4">
+                            <AlertCircle size={24} className="text-yellow-500" />
+                            <h3 className="text-xl font-bold text-white">Suspend Account</h3>
+                        </div>
+
+                        <p className="text-sm text-gray-300 mb-4">Suspend <span className="font-bold text-yellow-400">@{suspendModal.username}</span></p>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-2">Duration (Hours)</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={suspendModal.hours}
+                                    onChange={e => setSuspendModal({ ...suspendModal, hours: parseInt(e.target.value) })}
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-yellow-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-2">Reason</label>
+                                <textarea
+                                    value={suspendModal.reason}
+                                    onChange={e => setSuspendModal({ ...suspendModal, reason: e.target.value })}
+                                    placeholder="Why is this account being suspended?"
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-yellow-500 text-xs resize-none h-20"
+                                />
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={suspendUser}
+                                    className="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 rounded-lg transition-colors"
+                                >
+                                    Suspend User
+                                </button>
+                                <button
+                                    onClick={() => setSuspendModal(null)}
+                                    className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-2 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -243,7 +367,7 @@ const AdminApp = () => {
 
     const menuItems = [
         { id: 'stats', label: 'Monitor', icon: BarChart3 },
-        { id: 'users', label: 'Users', icon: Users },
+        { id: 'users', label: 'Users & Suspensions', icon: Users },
         { id: 'feedback', label: 'Feedback', icon: Inbox },
         { id: 'apps', label: 'Apps', icon: AppWindow },
     ];
