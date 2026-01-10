@@ -89,12 +89,12 @@ const AppWindow = ({ app }) => {
         // Center the window horizontally
         const x = (window.innerWidth - defaultSize.w) / 2;
         
-        // For shorter apps, position higher on screen
+        // For shorter apps, spawn in the middle
         const shorterApps = ['messages', 'friends', 'nexus', 'studio', 'settings', 'admin'];
         let y;
         if (shorterApps.includes(app.appId)) {
-            // Position roughly in middle/upper-middle area
-            y = Math.max(60, (window.innerHeight - defaultSize.h) / 2 + 80);
+            // Center vertically in the middle of the screen
+            y = Math.max(60, (window.innerHeight - defaultSize.h) / 2);
         } else {
             // Center vertically for other apps
             y = Math.max(60, (window.innerHeight - defaultSize.h) / 2);
