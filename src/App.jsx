@@ -8,7 +8,7 @@ import MobileAppView from './components/OS/MobileAppView';
 import { AnimatePresence } from 'framer-motion';
 
 const MobileHome = () => {
-    const { apps } = useOS();
+    const { apps, user } = useOS();
     const [showDock, setShowDock] = useState(true);
     const [time, setTime] = useState(new Date());
 
@@ -26,10 +26,11 @@ const MobileHome = () => {
     }, [apps]);
 
     const formatTime = (date) => {
-        return date.toLocaleTimeString('en-US', {
+        const is24 = user?.settings?.clock_24h ?? true;
+        return date.toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit',
-            hour12: true
+            hour12: !is24
         });
     };
 
