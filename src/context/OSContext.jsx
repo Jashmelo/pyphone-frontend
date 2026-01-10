@@ -28,6 +28,8 @@ export const OSProvider = ({ children }) => {
     const [deviceType, setDeviceType] = useState(getDeviceType());
     const [suspension, setSuspension] = useState(null); // { reason, expireTime, suspended_at }
     const [userWallpapers, setUserWallpapers] = useState({}); // Store wallpaper for each user
+    const [adminWallpaper, setAdminWallpaper] = useState('neural'); // Store admin's wallpaper before impersonating
+    const [fullscreenAppId, setFullscreenAppId] = useState(null); // Track which app is fullscreen
 
     // Load user from local storage and check suspension on mount
     useEffect(() => {
@@ -228,6 +230,8 @@ export const OSProvider = ({ children }) => {
 
     const impersonate = (username) => {
         if (user?.username === 'admin') {
+            // Save admin's current wallpaper before switching
+            setAdminWallpaper(user.settings.wallpaper || 'neural');
             sessionStorage.setItem('true_admin', 'admin');
             setTrueAdmin('admin');
         }
@@ -247,6 +251,7 @@ export const OSProvider = ({ children }) => {
         setApps([]);
         setMinimizedApps([]);
         setSuspension(null);
+        setFullscreenAppId(null);
         localStorage.removeItem('pyphone_suspension');
         localStorage.setItem('pyphone_user', JSON.stringify(userData));
     };
@@ -256,12 +261,13 @@ export const OSProvider = ({ children }) => {
             username: 'admin',
             settings: {
                 clock_24h: true,
-                wallpaper: userWallpapers['admin'] || 'neural'
+                wallpaper: adminWallpaper // Use the saved admin wallpaper
             }
         };
         setUser(originalAdmin);
         setTrueAdmin(null);
         setSuspension(null);
+        setFullscreenAppId(null);
         localStorage.removeItem('pyphone_suspension');
         sessionStorage.removeItem('true_admin');
         setApps([]);
@@ -288,6 +294,11 @@ export const OSProvider = ({ children }) => {
             const updatedWallpapers = { ...userWallpapers, [user.username]: newSettings.wallpaper };
             setUserWallpapers(updatedWallpapers);
             localStorage.setItem('pyphone_wallpapers', JSON.stringify(updatedWallpapers));
+            
+            // Also save to adminWallpaper if this is the admin account
+            if (user.username === 'admin') {
+                setAdminWallpaper(newSettings.wallpaper);
+            }
         }
 
         try {
@@ -327,6 +338,7 @@ export const OSProvider = ({ children }) => {
         setUser(null);
         setTrueAdmin(null);
         setSuspension(null);
+        setFullscreenAppId(null);
         sessionStorage.removeItem('true_admin');
         setIsLocked(true);
         setApps([]);
@@ -365,6 +377,10 @@ export const OSProvider = ({ children }) => {
         setApps(apps.filter(a => a.id !== id));
         setMinimizedApps(minimizedApps.filter(appId => appId !== id));
         if (activeApp === id) setActiveApp(null);
+        // Clear fullscreen when closing
+        if (fullscreenAppId === id) {
+            setFullscreenAppId(null);
+        }
     };
 
     const minimizeApp = (id) => {
@@ -382,11 +398,15 @@ export const OSProvider = ({ children }) => {
         setActiveApp(id);
     };
 
+    const toggleFullscreen = (appId) => {
+        setFullscreenAppId(fullscreenAppId === appId ? null : appId);
+    };
+
     return (
         <OSContext.Provider value={{
-            user, trueAdmin, isLocked, apps, activeApp, formattedTime: formatTime(), deviceType, suspension,
+            user, trueAdmin, isLocked, apps, activeApp, formattedTime: formatTime(), deviceType, suspension, fullscreenAppId,
             login, register, logout, impersonate, stopImpersonation, updateSettings, deleteAccount,
-            openApp, closeApp, focusApp, updateAppWindow, minimizedApps, minimizeApp, restoreApp
+            openApp, closeApp, focusApp, updateAppWindow, minimizedApps, minimizeApp, restoreApp, toggleFullscreen
         }}>
             {children}
         </OSContext.Provider>
