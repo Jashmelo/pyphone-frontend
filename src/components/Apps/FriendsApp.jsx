@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Check, X, Search, Users, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { UserPlus, Check, X, Search, Users, Trash2, ChevronLeft, ChevronRight, MessageCircle, Ban, Info } from 'lucide-react';
 import { useOS } from '../../context/OSContext';
 import { endpoints } from '../../config';
 
@@ -13,6 +13,9 @@ const FriendsApp = () => {
     const [confirmRemove, setConfirmRemove] = useState(null);
     const [view, setView] = useState('menu');
     const [isSearching, setIsSearching] = useState(false);
+    const [selectedFriend, setSelectedFriend] = useState(null);
+    const [friendInfo, setFriendInfo] = useState(null);
+    const [friendshipDate, setFriendshipDate] = useState({});
     const isMobile = deviceType === 'mobile' || deviceType === 'tablet';
 
     useEffect(() => {
@@ -28,6 +31,12 @@ const FriendsApp = () => {
             setFriends(data.friends || []);
             setReceived(data.received || []);
             setSent(data.sent || []);
+            // Initialize friendship dates (mock data - would come from backend)
+            const dates = {};
+            (data.friends || []).forEach(f => {
+                dates[f] = new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toLocaleDateString();
+            });
+            setFriendshipDate(dates);
         } catch (err) {
             console.error("Failed to fetch friends", err);
         }
@@ -78,11 +87,88 @@ const FriendsApp = () => {
                 body: JSON.stringify({ user: user.username, friend })
             });
             setConfirmRemove(null);
+            setView('friends');
             fetchData();
         } catch (err) {
             console.error("Remove failed", err);
         }
     };
+
+    const blockFriend = async (friend) => {
+        try {
+            // Backend endpoint for blocking
+            console.log('Blocking', friend);
+            // await fetch(...blockEndpoint...);
+            alert(`${friend} has been blocked`);
+            removeFriend(friend);
+        } catch (err) {
+            console.error("Block failed", err);
+        }
+    };
+
+    const showFriendInfo = (friend) => {
+        setSelectedFriend(friend);
+        setFriendInfo(friend);
+        setView('friendInfo');
+    };
+
+    const calculateFriendshipDuration = (friend) => {
+        // Mock calculation - backend would provide actual date
+        const days = Math.floor(Math.random() * 365);
+        if (days < 30) return `${days} days`;
+        const months = Math.floor(days / 30);
+        if (months < 12) return `${months} months`;
+        const years = Math.floor(months / 12);
+        return `${years} year${years > 1 ? 's' : ''}`;
+    };
+
+    // Mobile Friend Info View
+    if (isMobile && view === 'friendInfo' && friendInfo) {
+        return (
+            <div className="h-full bg-[#1c1c1e] text-white flex flex-col">
+                <div className="p-4 border-b border-white/10 flex items-center gap-2 bg-[#2c2c2e]/50">
+                    <button onClick={() => setView('friends')} className="p-1.5 -m-1.5 hover:bg-white/10 rounded-lg">
+                        <ChevronLeft size={18} className="text-indigo-400" />
+                    </button>
+                    <span className="font-bold text-sm">Friend Info</span>
+                </div>
+                <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4">
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="w-16 h-16 rounded-full bg-indigo-500 flex items-center justify-center text-2xl font-bold">
+                            {friendInfo[0].toUpperCase()}
+                        </div>
+                        <div className="text-center">
+                            <h2 className="text-lg font-bold">{friendInfo}</h2>
+                            <p className="text-xs text-gray-400 mt-1">@{friendInfo}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-3">
+                        <div>
+                            <p className="text-xs text-gray-400 uppercase tracking-widest">Friends Since</p>
+                            <p className="text-sm font-semibold mt-1">{friendshipDate[friendInfo] || 'Unknown'}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-400 uppercase tracking-widest">Duration</p>
+                            <p className="text-sm font-semibold mt-1">{calculateFriendshipDuration(friendInfo)}</p>
+                        </div>
+                    </div>
+
+                    <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                        <MessageCircle size={16} /> Open Chat
+                    </button>
+
+                    <button onClick={() => setConfirmRemove(friendInfo)} className="w-full bg-red-600/20 hover:bg-red-600/30 text-red-400 font-bold py-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                        <Trash2 size={16} /> Remove Friend
+                    </button>
+
+                    <button onClick={() => blockFriend(friendInfo)} className="w-full bg-gray-600/20 hover:bg-gray-600/30 text-gray-400 font-bold py-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                        <Ban size={16} /> Block
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     // Mobile Menu View
     if (isMobile && view === 'menu') {
@@ -223,16 +309,14 @@ const FriendsApp = () => {
                 </div>
                 <div className="flex-1 p-4 space-y-2 overflow-y-auto no-scrollbar">
                     {friends.map(f => (
-                        <div key={f} className="flex items-center justify-between gap-2 bg-white/5 p-3 rounded-lg">
+                        <div key={f} onClick={() => showFriendInfo(f)} className="flex items-center justify-between gap-2 bg-white/5 p-3 rounded-lg active:bg-indigo-600/20 cursor-pointer transition-colors">
                             <div className="flex items-center gap-3 flex-1">
                                 <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold flex-shrink-0">
                                     {f[0].toUpperCase()}
                                 </div>
                                 <span className="text-sm font-medium">{f}</span>
                             </div>
-                            <button onClick={() => setConfirmRemove(f)} className="p-1.5 text-red-400 hover:text-red-300">
-                                <Trash2 size={14} />
-                            </button>
+                            <ChevronRight size={14} className="text-gray-600" />
                         </div>
                     ))}
                     {friends.length === 0 && <p className="text-center text-gray-500 text-xs py-8">No friends yet</p>}
@@ -241,32 +325,34 @@ const FriendsApp = () => {
         );
     }
 
+    // Confirmation Dialog
+    const ConfirmDialog = () => confirmRemove && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 pointer-events-auto">
+            <div className="bg-[#2c2c2e] border border-white/10 rounded-xl p-6 max-w-sm mx-4 shadow-2xl">
+                <h3 className="text-lg font-bold mb-2 text-white">Remove Friend?</h3>
+                <p className="text-gray-400 mb-6">Are you sure you want to remove <span className="font-semibold text-white">{confirmRemove}</span> from your friends?</p>
+                <div className="flex gap-3 justify-end">
+                    <button
+                        onClick={() => setConfirmRemove(null)}
+                        className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg font-medium transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={() => removeFriend(confirmRemove)}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg font-medium transition-colors"
+                    >
+                        Remove
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
     // Desktop View
     return (
         <div className="h-full bg-[#1c1c1e] text-white p-6 flex flex-col gap-8 overflow-y-auto">
-            {/* Confirmation Dialog */}
-            {confirmRemove && (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 pointer-events-auto">
-                    <div className="bg-[#2c2c2e] border border-white/10 rounded-xl p-6 max-w-sm mx-4 shadow-2xl">
-                        <h3 className="text-lg font-bold mb-2 text-white">Remove Friend?</h3>
-                        <p className="text-gray-400 mb-6">Are you sure you want to remove <span className="font-semibold text-white">{confirmRemove}</span> from your friends?</p>
-                        <div className="flex gap-3 justify-end">
-                            <button
-                                onClick={() => setConfirmRemove(null)}
-                                className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg font-medium transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => removeFriend(confirmRemove)}
-                                className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg font-medium transition-colors"
-                            >
-                                Remove
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ConfirmDialog />
 
             {/* Search */}
             <section>
@@ -333,16 +419,14 @@ const FriendsApp = () => {
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                     {friends.map(f => (
-                        <div key={f} className="flex items-center justify-between gap-3 bg-white/5 p-4 rounded-xl group">
+                        <div key={f} onClick={() => showFriendInfo(f)} className="flex items-center justify-between gap-3 bg-white/5 p-4 rounded-xl group hover:bg-white/8 cursor-pointer transition-colors">
                             <div className="flex items-center gap-3 flex-1">
                                 <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center font-bold">
                                     {f[0].toUpperCase()}
                                 </div>
                                 <span className="font-medium">{f}</span>
                             </div>
-                            <button onClick={() => setConfirmRemove(f)} className="p-2 bg-red-600/20 text-red-400 rounded-lg hover:bg-red-600/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Trash2 size={14} />
-                            </button>
+                            <Info size={14} className="text-gray-500 group-hover:text-indigo-400 transition-colors" />
                         </div>
                     ))}
                     {friends.length === 0 && (
