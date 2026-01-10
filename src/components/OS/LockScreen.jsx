@@ -4,7 +4,7 @@ import { Lock, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const LockScreen = () => {
-    const { login, register, suspension, logout, user } = useOS();
+    const { login, register, suspension, logout, user, deviceType } = useOS();
     const [mode, setMode] = useState('login');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -13,6 +13,12 @@ const LockScreen = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
     const [remainingTime, setRemainingTime] = useState(0);
+    const [isMobile, setIsMobile] = useState(false);
+
+    // Detect if mobile/tablet
+    useEffect(() => {
+        setIsMobile(deviceType === 'mobile' || deviceType === 'tablet');
+    }, [deviceType]);
 
     // Timer for suspension countdown
     useEffect(() => {
@@ -67,12 +73,14 @@ const LockScreen = () => {
     // SUSPENSION SCREEN
     if (user && suspension) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen text-white z-50 relative bg-gradient-to-br from-slate-900 via-red-900/30 to-slate-900">
+            <div className="flex flex-col items-center justify-center min-h-screen text-white z-50 relative bg-gradient-to-br from-slate-900 via-red-900/30 to-slate-900 px-4">
                 <motion.div
                     initial={{ opacity: 0, y: 20, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     transition={{ duration: 0.4 }}
-                    className="bg-slate-950/80 backdrop-blur-xl p-8 rounded-2xl border border-red-500/50 w-96 shadow-2xl text-center"
+                    className={`bg-slate-950/80 backdrop-blur-xl p-6 rounded-2xl border border-red-500/50 shadow-2xl text-center ${
+                        isMobile ? 'w-full max-w-sm' : 'w-96'
+                    }`}
                 >
                     {/* Warning Icon */}
                     <div className="flex justify-center mb-6">
@@ -81,16 +89,18 @@ const LockScreen = () => {
                             transition={{ duration: 2, repeat: Infinity }}
                             className="bg-red-600/30 border border-red-500/60 p-4 rounded-full"
                         >
-                            <AlertTriangle size={48} className="text-red-400" strokeWidth={1.5} />
+                            <AlertTriangle size={isMobile ? 40 : 48} className="text-red-400" strokeWidth={1.5} />
                         </motion.div>
                     </div>
 
                     {/* Title */}
-                    <h2 className="text-3xl font-bold text-red-400 mb-1">Account Temporarily Blocked</h2>
+                    <h2 className={`font-bold text-red-400 mb-1 ${
+                        isMobile ? 'text-2xl' : 'text-3xl'
+                    }`}>Account Temporarily Blocked</h2>
                     <p className="text-xs text-gray-400 mb-6 uppercase tracking-wider font-semibold">⚠️ Kernel Access Restricted</p>
 
                     {/* Suspension Details Box */}
-                    <div className="bg-red-900/20 border border-red-500/40 rounded-lg p-5 mb-6 text-left space-y-4">
+                    <div className="bg-red-900/20 border border-red-500/40 rounded-lg p-4 mb-6 text-left space-y-3">
                         {/* Username */}
                         <div>
                             <p className="text-xs text-gray-400 uppercase tracking-widest">Username</p>
@@ -111,7 +121,9 @@ const LockScreen = () => {
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                                 transition={{ duration: 0.2 }}
-                                className="text-2xl text-yellow-300 font-mono font-bold mt-1"
+                                className={`text-yellow-300 font-mono font-bold mt-1 ${
+                                    isMobile ? 'text-xl' : 'text-2xl'
+                                }`}
                             >
                                 {formatRemainingTime(remainingTime)}
                             </motion.div>
@@ -127,7 +139,7 @@ const LockScreen = () => {
                     </div>
 
                     {/* Info Message */}
-                    <div className="bg-gray-900/50 border border-gray-700/50 rounded-lg p-4 mb-6">
+                    <div className="bg-gray-900/50 border border-gray-700/50 rounded-lg p-3 mb-6">
                         <p className="text-xs text-gray-300 leading-relaxed">
                             Your account has been temporarily suspended. You will regain access once the suspension period expires. Please try again later.
                         </p>
@@ -190,15 +202,17 @@ const LockScreen = () => {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen text-white z-50 relative">
+        <div className="flex flex-col items-center justify-center min-h-screen text-white z-50 relative px-4">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-black/40 backdrop-blur-md p-8 rounded-2xl border border-white/10 w-80 shadow-2xl"
+                className={`bg-black/40 backdrop-blur-md p-6 rounded-2xl border border-white/10 shadow-2xl ${
+                    isMobile ? 'w-full max-w-sm' : 'w-80'
+                }`}
             >
                 <div className="flex justify-center mb-6">
                     <div className="bg-white/10 p-4 rounded-full">
-                        <Lock size={32} />
+                        <Lock size={isMobile ? 28 : 32} />
                     </div>
                 </div>
 
