@@ -144,7 +144,14 @@ const LockScreen = () => {
             if (mode === 'login') {
                 const success = await login(username, password, rememberMe);
                 if (!success) {
-                    setError('Invalid username or password');
+                    // Check if suspension screen is showing (login function handles it)
+                    if (suspension) {
+                        // Suspension screen will appear automatically
+                        setPassword('');
+                    } else {
+                        // Regular auth failure
+                        setError('Invalid username or password');
+                    }
                 }
             } else {
                 if (password !== confirmPassword) {
