@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 
 const LockScreen = () => {
     const { login, register, suspension, logout, user } = useOS();
-    const [mode, setMode] = useState('login'); // 'login' or 'register'
+    const [mode, setMode] = useState('login');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -14,36 +14,36 @@ const LockScreen = () => {
     const [rememberMe, setRememberMe] = useState(false);
     const [remainingTime, setRemainingTime] = useState(0);
 
-    // If user is suspended, update the timer and check for expiry
+    // Timer for suspension countdown
     useEffect(() => {
-        if (!user || !suspension) {
-            setRemainingTime(0);
+        if (!user || !suspension || !suspension.expireTime) {
             return;
         }
 
-        const updateTimer = () => {
+        console.log('[LockScreen] Suspension active - starting timer');
+        console.log(`[LockScreen] Expire time: ${new Date(suspension.expireTime).toISOString()}`);
+
+        const interval = setInterval(() => {
             const now = Date.now();
-            const remaining = suspension.expireTime - now;
+            const remaining = Math.max(0, suspension.expireTime - now);
+            
+            setRemainingTime(remaining);
 
             if (remaining <= 0) {
-                // Suspension has expired - auto-logout
                 console.log('[LockScreen] Suspension expired - logging out');
+                clearInterval(interval);
                 logout();
-                return;
             }
+        }, 1000);
 
-            setRemainingTime(remaining);
-        };
+        // Initial calculation
+        const now = Date.now();
+        const initial = Math.max(0, suspension.expireTime - now);
+        setRemainingTime(initial);
 
-        // Initial update
-        updateTimer();
-
-        // Update every second
-        const interval = setInterval(updateTimer, 1000);
         return () => clearInterval(interval);
-    }, [user?.username, suspension?.expireTime]); // Only depend on these specific values
+    }, [user?.username, suspension?.expireTime, logout]);
 
-    // Format milliseconds to readable time format
     const formatRemainingTime = (ms) => {
         if (ms <= 0) return 'Expired';
         
@@ -62,7 +62,7 @@ const LockScreen = () => {
         return parts.join(' ');
     };
 
-    // SUSPENSION SCREEN - MAIN DISPLAY
+    // SUSPENSION SCREEN
     if (user && suspension) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen text-white z-50 relative bg-gradient-to-br from-slate-900 via-red-900/30 to-slate-900">
@@ -106,8 +106,8 @@ const LockScreen = () => {
                             <p className="text-xs text-gray-400 uppercase tracking-widest">Time Remaining</p>
                             <motion.div
                                 key={Math.floor(remainingTime / 1000)}
-                                initial={{ scale: 0.95, opacity: 0.5 }}
-                                animate={{ scale: 1, opacity: 1 }}
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
                                 transition={{ duration: 0.2 }}
                                 className="text-2xl text-yellow-300 font-mono font-bold mt-1"
                             >
@@ -160,10 +160,8 @@ const LockScreen = () => {
             if (mode === 'login') {
                 const result = await login(username, password, rememberMe);
                 if (result === 'suspended') {
-                    // Suspension screen will show on next render
                     setPassword('');
                 } else if (!result) {
-                    // Regular auth failure
                     setError('Invalid username or password');
                 }
             } else {
