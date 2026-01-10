@@ -13,7 +13,7 @@ import DevStudio from '../Apps/DevStudio';
 import NexusAI from '../Apps/NexusAI';
 import ChessGame from '../Apps/ChessGame';
 
-// Optimized app dimensions for different screen sizes and device types
+// Optimized app dimensions for different screen sizes and device type
 const APP_SIZES = {
     mobile: {
         notes: { w: 320, h: 480 },
@@ -205,7 +205,9 @@ const AppWindow = ({ app }) => {
         closeApp(app.id);
     };
 
-    // Handle window dragging with instant feedback and boundary constraints
+    // Handle window dragging with instant feedback
+    // ONLY constraint: title bar cannot go above 40px (app bar height)
+    // Windows can go off-screen on sides and bottom
     const handleTitleBarMouseDown = (e) => {
         if (isMaximized || e.button !== 0) return; // Only left mouse button
         e.preventDefault();
@@ -227,15 +229,11 @@ const AppWindow = ({ app }) => {
             let newX = dragStartPos.current.windowX + deltaX;
             let newY = dragStartPos.current.windowY + deltaY;
 
-            // Apply boundary constraints
-            // Left boundary: cannot go past 0
-            newX = Math.max(0, newX);
-            // Right boundary: window right edge cannot go past screen right
-            newX = Math.min(newX, window.innerWidth - app.width);
-            // Top boundary: cannot go above 40px (app bar height)
+            // ONLY constraint: Top bar cannot go above 40px (app bar height)
             newY = Math.max(40, newY);
-            // Bottom boundary: window bottom edge cannot go past screen bottom
-            newY = Math.min(newY, window.innerHeight - app.height);
+            
+            // Allow windows to go off-screen on sides and bottom
+            // No left, right, or bottom constraints
 
             updateAppWindow(app.id, { x: newX, y: newY });
         };
@@ -283,7 +281,7 @@ const AppWindow = ({ app }) => {
                 newY = startTop - diff;
             }
 
-            // Min constraints
+            // Min constraints - only enforce minimum size
             if (newWidth < 400) { 
                 newWidth = 400; 
                 newX = app.x; 
@@ -291,6 +289,17 @@ const AppWindow = ({ app }) => {
             if (newHeight < 300) { 
                 newHeight = 300; 
                 newY = app.y; 
+            }
+
+            // Top constraint: ensure top bar doesn't go above 40px
+            if (newY < 40) {
+                if (direction.includes('n')) {
+                    // When resizing from top, clamp to 40px
+                    const diff = 40 - newY;
+                    newY = 40;
+                    newHeight = newHeight - diff;
+                    if (newHeight < 300) newHeight = 300; // Maintain min height
+                }
             }
 
             updateAppWindow(app.id, { width: newWidth, height: newHeight, x: newX, y: newY });
