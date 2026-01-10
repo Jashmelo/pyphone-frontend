@@ -89,12 +89,12 @@ const AppWindow = ({ app }) => {
         // Center the window horizontally
         const x = (window.innerWidth - defaultSize.w) / 2;
         
-        // For shorter apps, position at bottom
+        // For shorter apps, position higher on screen
         const shorterApps = ['messages', 'friends', 'nexus', 'studio', 'settings', 'admin'];
         let y;
         if (shorterApps.includes(app.appId)) {
-            // Position at bottom with 60px margin from bottom (less than 100) for dock clearance
-            y = window.innerHeight - defaultSize.h - 60;
+            // Position roughly in middle/upper-middle area
+            y = Math.max(60, (window.innerHeight - defaultSize.h) / 2 + 80);
         } else {
             // Center vertically for other apps
             y = Math.max(60, (window.innerHeight - defaultSize.h) / 2);
