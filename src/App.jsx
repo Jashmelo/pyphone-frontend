@@ -10,18 +10,35 @@ import { AnimatePresence } from 'framer-motion';
 const MobileHome = () => {
     const { apps } = useOS();
     const [showDock, setShowDock] = useState(true);
+    const [time, setTime] = useState(new Date());
+
+    // Update time every second
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setTime(new Date());
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
 
     // Hide dock when app is open
     useEffect(() => {
         setShowDock(apps.length === 0);
     }, [apps]);
 
+    const formatTime = (date) => {
+        return date.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+    };
+
     return (
         <div className="relative h-screen w-screen overflow-hidden flex flex-col">
             {/* Mobile Status Bar - Smaller for portrait */}
             <div className="h-6 bg-black/40 backdrop-blur-sm flex justify-between items-center px-3 text-white text-[10px] z-40 shrink-0">
                 <span className="font-bold">PyPhone</span>
-                <span>--:-- </span>
+                <span>{formatTime(time)}</span>
             </div>
 
             {/* App Content Area */}
