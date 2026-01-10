@@ -40,12 +40,14 @@ const LockScreen = () => {
         const now = Date.now();
         const initial = Math.max(0, suspension.expireTime - now);
         setRemainingTime(initial);
+        console.log(`[LockScreen] Initial remaining: ${initial}ms (${(initial/1000).toFixed(0)}s)`);
 
         return () => clearInterval(interval);
     }, [user?.username, suspension?.expireTime, logout]);
 
     const formatRemainingTime = (ms) => {
-        if (ms <= 0) return 'Expired';
+        // Only show expired if truly at 0 or negative
+        if (ms < 1000) return 'Expired';
         
         const totalSeconds = Math.floor(ms / 1000);
         const seconds = totalSeconds % 60;
@@ -57,9 +59,9 @@ const LockScreen = () => {
         if (days > 0) parts.push(`${days}d`);
         if (hours > 0) parts.push(`${hours}h`);
         if (minutes > 0) parts.push(`${minutes}m`);
-        if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
+        if (seconds > 0) parts.push(`${seconds}s`);
         
-        return parts.join(' ');
+        return parts.length > 0 ? parts.join(' ') : 'Less than 1 second';
     };
 
     // SUSPENSION SCREEN
@@ -98,7 +100,7 @@ const LockScreen = () => {
                         {/* Reason */}
                         <div>
                             <p className="text-xs text-gray-400 uppercase tracking-widest">Suspension Reason</p>
-                            <p className="text-sm text-red-300 mt-1 italic">"{suspension.reason}"</p>
+                            <p className="text-sm text-red-300 mt-1 italic""{suspension.reason}"</p>
                         </div>
 
                         {/* Time Remaining */}
