@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useOS } from '../../context/OSContext';
-import { Lock, User, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Lock, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const LockScreen = () => {
-    const { login, register, suspension, logout, user, isLocked } = useOS();
+    const { login, register, suspension, logout, user } = useOS();
     const [mode, setMode] = useState('login'); // 'login' or 'register'
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -14,20 +14,20 @@ const LockScreen = () => {
     const [rememberMe, setRememberMe] = useState(false);
     const [remainingTime, setRemainingTime] = useState(0);
 
-    // Update remaining suspension time every second
+    // If user is suspended, show ONLY the suspension screen
     useEffect(() => {
-        if (!suspension || !user) return;
-        
-        const updateTime = () => {
-            const now = Date.now();
-            const remaining = Math.max(0, suspension.expireTime - now);
-            setRemainingTime(remaining);
-        };
-        
-        updateTime();
-        const interval = setInterval(updateTime, 1000);
-        return () => clearInterval(interval);
-    }, [suspension, user]);
+        if (user && suspension) {
+            const updateTime = () => {
+                const now = Date.now();
+                const remaining = Math.max(0, suspension.expireTime - now);
+                setRemainingTime(remaining);
+            };
+            
+            updateTime();
+            const interval = setInterval(updateTime, 1000);
+            return () => clearInterval(interval);
+        }
+    }, [user, suspension]);
 
     // Format milliseconds to readable time format
     const formatRemainingTime = (ms) => {
@@ -47,9 +47,8 @@ const LockScreen = () => {
         return parts.join(' ');
     };
 
-    // If user is suspended, show suspension warning screen
-    // CRITICAL: Check that user AND suspension both exist, and isLocked is false (meaning we're showing desktop screens)
-    if (user && suspension && remainingTime > 0 && !isLocked) {
+    // SUSPENSION SCREEN - MAIN DISPLAY
+    if (user && suspension) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen text-white z-50 relative bg-gradient-to-br from-slate-900 via-red-900/30 to-slate-900">
                 <motion.div
@@ -135,7 +134,7 @@ const LockScreen = () => {
         );
     }
 
-    // Normal login/register screen (only show when isLocked is true)
+    // NORMAL LOGIN/REGISTER SCREEN
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -145,7 +144,7 @@ const LockScreen = () => {
             if (mode === 'login') {
                 const result = await login(username, password, rememberMe);
                 if (result === 'suspended') {
-                    // Suspension screen will auto-show
+                    // Suspension screen will show on next render
                     setPassword('');
                 } else if (!result) {
                     // Regular auth failure
