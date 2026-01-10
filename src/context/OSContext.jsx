@@ -129,8 +129,38 @@ export const OSProvider = ({ children }) => {
             });
             const data = await response.json();
 
+            // CRITICAL: Check for 403 (suspended) response FIRST
+            if (response.status === 403) {
+                // Backend rejected login due to suspension
+                console.log('User suspended during login attempt');
+                const detail = data?.detail;
+                
+                if (typeof detail === 'object' && detail?.error === 'Account suspended') {
+                    // This is a suspension response
+                    const userData = {
+                        username: username,
+                        settings: { clock_24h: true, wallpaper: 'neural' }
+                    };
+                    
+                    setSuspension({
+                        reason: detail.reason || 'No reason provided',
+                        expireTime: new Date(detail.expire_time).getTime(),
+                        suspended_at: detail.suspended_at || new Date().toISOString()
+                    });
+                    setUser(userData);
+                    setIsLocked(false); // Show suspension screen
+                    
+                    // Store user data for persistence
+                    localStorage.setItem('pyphone_user', JSON.stringify(userData));
+                    localStorage.removeItem('pyphone_remember_me');
+                    
+                    return 'suspended'; // Return special status for suspended users
+                }
+            }
+            
+            // Check for successful login (200)
             if (response.ok) {
-                // Password was correct, check for suspension
+                // Password was correct, check if user is also suspended as backup
                 const userData = {
                     username: data.username,
                     settings: { clock_24h: true, wallpaper: 'neural' }
@@ -159,33 +189,8 @@ export const OSProvider = ({ children }) => {
                 
                 return true;
             } else {
-                // Login failed - check if it's due to suspension
-                const detail = data?.detail;
-                
-                if (typeof detail === 'object' && detail?.error === 'Account suspended') {
-                    // Backend is blocking due to suspension
-                    const userData = {
-                        username: username,
-                        settings: { clock_24h: true, wallpaper: 'neural' }
-                    };
-                    
-                    setSuspension({
-                        reason: detail.reason || 'No reason provided',
-                        expireTime: new Date(detail.expire_time).getTime(),
-                        suspended_at: detail.suspended_at || new Date().toISOString()
-                    });
-                    setUser(userData);
-                    setIsLocked(false); // Show suspension screen
-                    
-                    // Store user data for persistence
-                    localStorage.setItem('pyphone_user', JSON.stringify(userData));
-                    localStorage.removeItem('pyphone_remember_me');
-                    
-                    return false; // Return false to signal suspension (not regular auth failure)
-                }
-                
-                // Regular authentication failure
-                console.error('Login failed:', detail);
+                // Login failed - regular authentication failure
+                console.error('Login failed:', data?.detail);
                 return false;
             }
         } catch (error) {
