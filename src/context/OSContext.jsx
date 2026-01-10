@@ -83,8 +83,8 @@ export const OSProvider = ({ children }) => {
         return () => clearInterval(interval);
     }, [user, suspension]);
 
+    // Check suspension status from backend - CRITICAL FIX
     const checkSuspension = async (username) => {
-        """Check suspension status from backend - CRITICAL FIX"""
         try {
             const res = await fetch(`${API_BASE_URL}/api/users/${username}/suspension`);
             if (res.ok) {
@@ -120,7 +120,7 @@ export const OSProvider = ({ children }) => {
     };
 
     const login = async (username, password, rememberMe = false) => {
-        """Login function - handles suspension response from backend"""
+        // Login function - handles suspension response from backend
         try {
             const response = await fetch(endpoints.login, {
                 method: 'POST',
@@ -130,6 +130,7 @@ export const OSProvider = ({ children }) => {
             const data = await response.json();
 
             if (response.ok) {
+                // Password was correct, check for suspension
                 const userData = {
                     username: data.username,
                     settings: { clock_24h: true, wallpaper: 'neural' }
@@ -158,9 +159,33 @@ export const OSProvider = ({ children }) => {
                 
                 return true;
             } else {
-                // Handle backend rejection (may include suspension info)
-                const errorMsg = data?.detail?.error || data?.detail || 'Login failed';
-                console.error('Login failed:', errorMsg);
+                // Login failed - check if it's due to suspension
+                const detail = data?.detail;
+                
+                if (typeof detail === 'object' && detail?.error === 'Account suspended') {
+                    // Backend is blocking due to suspension
+                    const userData = {
+                        username: username,
+                        settings: { clock_24h: true, wallpaper: 'neural' }
+                    };
+                    
+                    setSuspension({
+                        reason: detail.reason || 'No reason provided',
+                        expireTime: new Date(detail.expire_time).getTime(),
+                        suspended_at: detail.suspended_at || new Date().toISOString()
+                    });
+                    setUser(userData);
+                    setIsLocked(false); // Show suspension screen
+                    
+                    // Store user data for persistence
+                    localStorage.setItem('pyphone_user', JSON.stringify(userData));
+                    localStorage.removeItem('pyphone_remember_me');
+                    
+                    return false; // Return false to signal suspension (not regular auth failure)
+                }
+                
+                // Regular authentication failure
+                console.error('Login failed:', detail);
                 return false;
             }
         } catch (error) {
