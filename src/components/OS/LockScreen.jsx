@@ -16,25 +16,23 @@ const LockScreen = () => {
 
     // If user is suspended, update the timer and check for expiry
     useEffect(() => {
-        if (!user || !suspension) return;
+        if (!user || !suspension) {
+            setRemainingTime(0);
+            return;
+        }
 
         const updateTimer = () => {
             const now = Date.now();
             const remaining = suspension.expireTime - now;
 
-            console.log(`[LockScreen Timer] Remaining: ${remaining}ms (${(remaining / 1000).toFixed(1)}s)`);
-
             if (remaining <= 0) {
-                // Suspension has expired
+                // Suspension has expired - auto-logout
                 console.log('[LockScreen] Suspension expired - logging out');
                 logout();
-                setRememberMe(false);
-                setUsername('');
-                setPassword('');
-            } else {
-                // Update remaining time
-                setRemainingTime(remaining);
+                return;
             }
+
+            setRemainingTime(remaining);
         };
 
         // Initial update
@@ -43,7 +41,7 @@ const LockScreen = () => {
         // Update every second
         const interval = setInterval(updateTimer, 1000);
         return () => clearInterval(interval);
-    }, [user, suspension, logout]);
+    }, [user?.username, suspension?.expireTime]); // Only depend on these specific values
 
     // Format milliseconds to readable time format
     const formatRemainingTime = (ms) => {
@@ -107,7 +105,7 @@ const LockScreen = () => {
                         <div>
                             <p className="text-xs text-gray-400 uppercase tracking-widest">Time Remaining</p>
                             <motion.div
-                                key={Math.floor(remainingTime / 1000)} // Re-render every second
+                                key={Math.floor(remainingTime / 1000)}
                                 initial={{ scale: 0.95, opacity: 0.5 }}
                                 animate={{ scale: 1, opacity: 1 }}
                                 transition={{ duration: 0.2 }}
@@ -122,13 +120,6 @@ const LockScreen = () => {
                             <p className="text-xs text-gray-400 uppercase tracking-widest">Suspended At</p>
                             <p className="text-xs text-gray-500 mt-1 font-mono">
                                 {suspension.suspended_at ? new Date(suspension.suspended_at).toLocaleString() : 'Unknown'}
-                            </p>
-                        </div>
-
-                        {/* Debug Info (remove in production) */}
-                        <div className="pt-2 border-t border-red-500/30">
-                            <p className="text-xs text-gray-600 font-mono">
-                                Expires: {new Date(suspension.expireTime).toLocaleString()}
                             </p>
                         </div>
                     </div>
