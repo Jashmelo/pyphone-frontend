@@ -54,7 +54,7 @@ const APP_SIZES = {
 };
 
 const AppWindow = ({ app }) => {
-    const { closeApp, focusApp, activeApp, updateAppWindow, minimizeApp, restoreApp, minimizedApps } = useOS();
+    const { closeApp, focusApp, activeApp, updateAppWindow, minimizeApp, restoreApp, minimizedApps, toggleFullscreen, fullscreenAppId } = useOS();
     const [deviceType, setDeviceType] = useState('desktop');
     const [isMinimized, setIsMinimized] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -63,6 +63,11 @@ const AppWindow = ({ app }) => {
     const isActive = activeApp === app.id;
     const windowRef = useRef(null);
     const dragStartPos = useRef(null);
+
+    // Sync local fullscreen state with global fullscreenAppId
+    useEffect(() => {
+        setIsFullscreen(fullscreenAppId === app.appId);
+    }, [fullscreenAppId, app.appId]);
 
     // Detect device type on mount and on resize
     useEffect(() => {
@@ -188,7 +193,6 @@ const AppWindow = ({ app }) => {
             if (preFullscreenState) {
                 updateAppWindow(app.id, preFullscreenState);
             }
-            setIsFullscreen(false);
             setPreFullscreenState(null);
         } else {
             // Save current state and go fullscreen
@@ -204,8 +208,10 @@ const AppWindow = ({ app }) => {
                 width: window.innerWidth,
                 height: window.innerHeight
             });
-            setIsFullscreen(true);
         }
+        
+        // Toggle global fullscreen state
+        toggleFullscreen(app.appId);
     };
 
     const handleClose = (e) => {
