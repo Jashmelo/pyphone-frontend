@@ -14,29 +14,46 @@ const LockScreen = () => {
     const [rememberMe, setRememberMe] = useState(false);
     const [remainingTime, setRemainingTime] = useState(0);
 
-    // If user is suspended, show ONLY the suspension screen
+    // If user is suspended, update the timer and check for expiry
     useEffect(() => {
-        if (user && suspension) {
-            const updateTime = () => {
-                const now = Date.now();
-                const remaining = Math.max(0, suspension.expireTime - now);
+        if (!user || !suspension) return;
+
+        const updateTimer = () => {
+            const now = Date.now();
+            const remaining = suspension.expireTime - now;
+
+            console.log(`[LockScreen Timer] Remaining: ${remaining}ms (${(remaining / 1000).toFixed(1)}s)`);
+
+            if (remaining <= 0) {
+                // Suspension has expired
+                console.log('[LockScreen] Suspension expired - logging out');
+                logout();
+                setRememberMe(false);
+                setUsername('');
+                setPassword('');
+            } else {
+                // Update remaining time
                 setRemainingTime(remaining);
-            };
-            
-            updateTime();
-            const interval = setInterval(updateTime, 1000);
-            return () => clearInterval(interval);
-        }
-    }, [user, suspension]);
+            }
+        };
+
+        // Initial update
+        updateTimer();
+
+        // Update every second
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+    }, [user, suspension, logout]);
 
     // Format milliseconds to readable time format
     const formatRemainingTime = (ms) => {
         if (ms <= 0) return 'Expired';
         
-        const seconds = Math.floor((ms / 1000) % 60);
-        const minutes = Math.floor((ms / (1000 * 60)) % 60);
-        const hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
-        const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+        const totalSeconds = Math.floor(ms / 1000);
+        const seconds = totalSeconds % 60;
+        const minutes = Math.floor((totalSeconds / 60) % 60);
+        const hours = Math.floor((totalSeconds / (60 * 60)) % 24);
+        const days = Math.floor(totalSeconds / (60 * 60 * 24));
         
         const parts = [];
         if (days > 0) parts.push(`${days}d`);
@@ -90,10 +107,11 @@ const LockScreen = () => {
                         <div>
                             <p className="text-xs text-gray-400 uppercase tracking-widest">Time Remaining</p>
                             <motion.div
-                                key={remainingTime}
-                                initial={{ opacity: 0.5 }}
-                                animate={{ opacity: 1 }}
-                                className="text-xl text-yellow-300 font-mono font-bold mt-1"
+                                key={Math.floor(remainingTime / 1000)} // Re-render every second
+                                initial={{ scale: 0.95, opacity: 0.5 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ duration: 0.2 }}
+                                className="text-2xl text-yellow-300 font-mono font-bold mt-1"
                             >
                                 {formatRemainingTime(remainingTime)}
                             </motion.div>
@@ -104,6 +122,13 @@ const LockScreen = () => {
                             <p className="text-xs text-gray-400 uppercase tracking-widest">Suspended At</p>
                             <p className="text-xs text-gray-500 mt-1 font-mono">
                                 {suspension.suspended_at ? new Date(suspension.suspended_at).toLocaleString() : 'Unknown'}
+                            </p>
+                        </div>
+
+                        {/* Debug Info (remove in production) */}
+                        <div className="pt-2 border-t border-red-500/30">
+                            <p className="text-xs text-gray-600 font-mono">
+                                Expires: {new Date(suspension.expireTime).toLocaleString()}
                             </p>
                         </div>
                     </div>
