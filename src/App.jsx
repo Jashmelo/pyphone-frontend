@@ -5,8 +5,7 @@ import LockScreen from './components/OS/LockScreen';
 import Dock from './components/OS/Dock';
 import AppWindow from './components/OS/AppWindow';
 import MobileAppView from './components/OS/MobileAppView';
-import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 
 const MobileHome = () => {
     const { apps, user } = useOS();
@@ -82,150 +81,23 @@ const Desktop = () => {
     );
 };
 
-const SuspensionWarning = ({ suspension, user, logout }) => {
-    const [remainingTime, setRemainingTime] = useState(0);
-
-    // Update remaining suspension time every second
-    useEffect(() => {
-        if (!suspension || !user) return;
-        
-        const updateTime = () => {
-            const now = Date.now();
-            const remaining = Math.max(0, suspension.expireTime - now);
-            setRemainingTime(remaining);
-            
-            // Auto-logout when suspension expires
-            if (remaining <= 0) {
-                logout();
-            }
-        };
-        
-        updateTime();
-        const interval = setInterval(updateTime, 1000);
-        return () => clearInterval(interval);
-    }, [suspension, user, logout]);
-
-    // Format milliseconds to readable time format
-    const formatRemainingTime = (ms) => {
-        if (ms <= 0) return 'Expired';
-        
-        const seconds = Math.floor((ms / 1000) % 60);
-        const minutes = Math.floor((ms / (1000 * 60)) % 60);
-        const hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
-        const days = Math.floor(ms / (1000 * 60 * 60 * 24));
-        
-        const parts = [];
-        if (days > 0) parts.push(`${days}d`);
-        if (hours > 0) parts.push(`${hours}h`);
-        if (minutes > 0) parts.push(`${minutes}m`);
-        if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
-        
-        return parts.join(' ');
-    };
-
-    return (
-        <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-red-900/30 to-slate-900 z-[9999] flex items-center justify-center">
-            <motion.div
-                initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.4 }}
-                className="bg-slate-950/80 backdrop-blur-xl p-8 rounded-2xl border border-red-500/50 w-96 shadow-2xl text-center"
-            >
-                {/* Warning Icon */}
-                <div className="flex justify-center mb-6">
-                    <motion.div
-                        animate={{ scale: [1, 1.05, 1] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                        className="bg-red-600/30 border border-red-500/60 p-4 rounded-full"
-                    >
-                        <AlertTriangle size={48} className="text-red-400" strokeWidth={1.5} />
-                    </motion.div>
-                </div>
-
-                {/* Title */}
-                <h2 className="text-3xl font-bold text-red-400 mb-1">Account Temporarily Blocked</h2>
-                <p className="text-xs text-gray-400 mb-6 uppercase tracking-wider font-semibold">⚠️ Kernel Access Restricted</p>
-
-                {/* Suspension Details Box */}
-                <div className="bg-red-900/20 border border-red-500/40 rounded-lg p-5 mb-6 text-left space-y-4">
-                    {/* Username */}
-                    <div>
-                        <p className="text-xs text-gray-400 uppercase tracking-widest">Username</p>
-                        <p className="text-sm text-white font-mono mt-1">@{user.username}</p>
-                    </div>
-
-                    {/* Reason */}
-                    <div>
-                        <p className="text-xs text-gray-400 uppercase tracking-widest">Suspension Reason</p>
-                        <p className="text-sm text-red-300 mt-1 italic">"{suspension.reason}"</p>
-                    </div>
-
-                    {/* Time Remaining */}
-                    <div>
-                        <p className="text-xs text-gray-400 uppercase tracking-widest">Time Remaining</p>
-                        <motion.div
-                            key={remainingTime}
-                            initial={{ opacity: 0.5 }}
-                            animate={{ opacity: 1 }}
-                            className="text-xl text-yellow-300 font-mono font-bold mt-1"
-                        >
-                            {formatRemainingTime(remainingTime)}
-                        </motion.div>
-                    </div>
-
-                    {/* Suspended At */}
-                    <div>
-                        <p className="text-xs text-gray-400 uppercase tracking-widest">Suspended At</p>
-                        <p className="text-xs text-gray-500 mt-1 font-mono">
-                            {suspension.suspended_at ? new Date(suspension.suspended_at).toLocaleString() : 'Unknown'}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Info Message */}
-                <div className="bg-gray-900/50 border border-gray-700/50 rounded-lg p-4 mb-6">
-                    <p className="text-xs text-gray-300 leading-relaxed">
-                        Your account has been temporarily suspended. You will regain access once the suspension period expires. Please try again later.
-                    </p>
-                </div>
-
-                {/* Log Out Button */}
-                <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={logout}
-                    className="w-full bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 text-white py-3 rounded-lg font-semibold transition-all duration-200 uppercase text-sm tracking-wider"
-                >
-                    Log Out
-                </motion.button>
-            </motion.div>
-        </div>
-    );
-};
-
 const OSLayout = () => {
-    const { isLocked, user, suspension, logout, deviceType } = useOS();
+    const { isLocked, user, suspension, deviceType } = useOS();
     const wallpaper = user?.settings?.wallpaper || 'neural';
     const isMobileOrTablet = deviceType === 'mobile' || deviceType === 'tablet';
 
-    // Check if user is suspended
-    const isSuspended = user && suspension && !isLocked;
+    // If user has suspension, always show lock screen with suspension message
+    const showLockScreen = isLocked || (user && suspension);
 
     return (
         <>
             <NeuralBackground theme={wallpaper} />
-            {isLocked ? (
+            {showLockScreen ? (
                 <LockScreen />
             ) : isMobileOrTablet ? (
-                <>
-                    <MobileHome />
-                    {isSuspended && <SuspensionWarning suspension={suspension} user={user} logout={logout} />}
-                </>
+                <MobileHome />
             ) : (
-                <>
-                    <Desktop />
-                    {isSuspended && <SuspensionWarning suspension={suspension} user={user} logout={logout} />}
-                </>
+                <Desktop />
             )}
         </>
     );
