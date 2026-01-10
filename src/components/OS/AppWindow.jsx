@@ -287,41 +287,40 @@ const AppWindow = ({ app }) => {
     return (
         <motion.div
             ref={windowRef}
-            initial={false}
-            animate={{
+            drag={!isMaximized}
+            dragMomentum={false}
+            dragElastic={0}
+            dragListener={true}
+            dragConstraints={{
+                left: 0,
+                top: 40,
+                right: window.innerWidth - app.width,
+                bottom: window.innerHeight - app.height
+            }}
+            onDragStart={() => focusApp(app.id)}
+            onDrag={(e, info) => {
+                if (!isMaximized) {
+                    updateAppWindow(app.id, { 
+                        x: Math.max(0, app.x + info.delta.x), 
+                        y: Math.max(40, app.y + info.delta.y) 
+                    });
+                }
+            }}
+            style={{
                 x: app.x,
                 y: app.y,
                 width: app.width,
-                height: app.height,
-                opacity: 1,
-                scale: 1
+                height: app.height
             }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300, mass: 0.5 }}
             className={`absolute bg-[#1c1c1e] rounded-2xl overflow-hidden shadow-2xl border border-white/10 flex flex-col pointer-events-auto transition-all
                 ${isActive ? 'z-50 ring-2 ring-white/20' : 'z-10'}
                 ${isMaximized ? 'rounded-none' : 'rounded-2xl'}
             `}
             onClick={() => focusApp(app.id)}
         >
-            {/* Title Bar - Drag Handle */}
-            <motion.div
+            {/* Title Bar */}
+            <div
                 className="h-10 bg-gradient-to-b from-[#3c3c3e] to-[#2c2c2e] flex items-center justify-between px-4 select-none cursor-move shrink-0 border-b border-white/5 group"
-                drag
-                dragMomentum={false}
-                dragElastic={0}
-                dragListener={true}
-                dragTransition={{ power: 0.2, timeConstant: 200 }}
-                onPointerDown={(e) => {
-                    focusApp(app.id);
-                }}
-                onDrag={(e, info) => {
-                    if (!isMaximized) {
-                        updateAppWindow(app.id, { 
-                            x: Math.max(0, app.x + info.delta.x), 
-                            y: Math.max(40, app.y + info.delta.y) 
-                        });
-                    }
-                }}
             >
                 <div className="flex gap-3 items-center">
                     <div className="flex gap-6">
@@ -348,7 +347,7 @@ const AppWindow = ({ app }) => {
                         {titles[app.appId] || 'App'}
                     </span>
                 </div>
-            </motion.div>
+            </div>
 
             {/* Content Area */}
             <div className="flex-1 overflow-auto bg-[#1c1c1e] text-white">
