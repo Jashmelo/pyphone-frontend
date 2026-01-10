@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 const Dock = () => {
-    const { openApp, user, trueAdmin, deviceType } = useOS();
+    const { openApp, user, trueAdmin, deviceType, minimizedApps, restoreApp } = useOS();
     const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
@@ -29,6 +29,16 @@ const Dock = () => {
         apps.push({ id: 'admin', icon: ShieldAlert, label: 'System', color: 'bg-purple-600' });
     }
 
+    const handleAppClick = (appId) => {
+        // If app is minimized, restore it
+        if (minimizedApps.includes(appId)) {
+            restoreApp(appId);
+        } else {
+            // Otherwise open it normally
+            openApp(appId);
+        }
+    };
+
     if (isMobile) {
         return (
             <div className="fixed bottom-0 left-0 right-0 z-30">
@@ -37,14 +47,17 @@ const Dock = () => {
                         <motion.button
                             key={app.id}
                             whileTap={{ scale: 0.9 }}
-                            onClick={() => openApp(app.id)}
+                            onClick={() => handleAppClick(app.id)}
                             className="flex flex-col items-center gap-1 group relative flex-shrink-0"
                         >
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-lg ${app.color}`}>
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-lg ${app.color} ${minimizedApps.includes(app.id) ? 'ring-2 ring-white' : ''}`}>
                                 <app.icon size={20} />
                             </div>
+                            {minimizedApps.includes(app.id) && (
+                                <div className="absolute w-1.5 h-1.5 bg-white rounded-full -bottom-1"></div>
+                            )}
                             <span className="absolute -top-8 bg-black/80 text-white text-[10px] px-2 py-1 rounded opacity-0 group-active:opacity-100 transition-opacity whitespace-nowrap">
-                                {app.label}
+                                {app.label} {minimizedApps.includes(app.id) ? '(minimized)' : ''}
                             </span>
                         </motion.button>
                     ))}
@@ -62,14 +75,17 @@ const Dock = () => {
                         key={app.id}
                         whileHover={{ scale: 1.2, y: -10 }}
                         whileTap={{ scale: 0.9 }}
-                        onClick={() => openApp(app.id)}
+                        onClick={() => handleAppClick(app.id)}
                         className="flex flex-col items-center gap-1 group relative"
                     >
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg ${app.color}`}>
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg ${app.color} ${minimizedApps.includes(app.id) ? 'ring-2 ring-white' : ''}`}>
                             <app.icon size={24} />
                         </div>
+                        {minimizedApps.includes(app.id) && (
+                            <div className="absolute w-2 h-2 bg-white rounded-full -bottom-1.5"></div>
+                        )}
                         <span className="absolute -top-10 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                            {app.label}
+                            {app.label} {minimizedApps.includes(app.id) ? '(minimized)' : ''}
                         </span>
                     </motion.button>
                 ))}
