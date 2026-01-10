@@ -32,18 +32,40 @@ export const OSProvider = ({ children }) => {
     useEffect(() => {
         const saved = localStorage.getItem('pyphone_user');
         const rememberMe = localStorage.getItem('pyphone_remember_me') === 'true';
+        const savedSuspension = localStorage.getItem('pyphone_suspension');
         
         if (saved && rememberMe) {
             const userData = JSON.parse(saved);
-            // Check if account is suspended
+            
+            // If we have a saved suspension from localStorage, restore it
+            if (savedSuspension) {
+                const suspensionData = JSON.parse(savedSuspension);
+                const now = Date.now();
+                
+                if (suspensionData.expireTime > now) {
+                    // Suspension still active
+                    setSuspension(suspensionData);
+                    setUser(userData);
+                    setIsLocked(false);
+                    console.log('[useEffect] Restored suspension from localStorage');
+                    return;
+                } else {
+                    // Suspension expired
+                    localStorage.removeItem('pyphone_suspension');
+                }
+            }
+            
+            // Check if account is suspended on backend
             checkSuspension(userData.username).then(suspensionData => {
                 if (suspensionData) {
                     // User is suspended - show suspension screen
                     setSuspension(suspensionData);
+                    localStorage.setItem('pyphone_suspension', JSON.stringify(suspensionData));
                     setUser(userData);
                     setIsLocked(false);
                 } else {
                     // User is not suspended - log them in
+                    localStorage.removeItem('pyphone_suspension');
                     setUser(userData);
                     setIsLocked(false);
                 }
@@ -51,6 +73,7 @@ export const OSProvider = ({ children }) => {
         } else if (saved) {
             // Clear saved user if remember me is not enabled
             localStorage.removeItem('pyphone_user');
+            localStorage.removeItem('pyphone_suspension');
             setIsLocked(true);
         } else {
             setIsLocked(true);
@@ -87,11 +110,12 @@ export const OSProvider = ({ children }) => {
                     
                     if (remaining > 0) {
                         // Suspension is still active
-                        return {
+                        const suspensionData = {
                             reason: data.reason || 'No reason provided',
                             expireTime: expireTime,
                             suspended_at: data.suspended_at
                         };
+                        return suspensionData;
                     }
                 }
             }
@@ -139,11 +163,14 @@ export const OSProvider = ({ children }) => {
                     console.log(`[login] Expire time (ms): ${expireTime}`);
                     console.log(`[login] Time remaining: ${remaining}ms (${(remaining/1000).toFixed(0)}s)`);
                     
-                    setSuspension({
+                    const suspensionData = {
                         reason: detail.reason || 'No reason provided',
                         expireTime: expireTime,
                         suspended_at: detail.suspended_at || new Date().toISOString()
-                    });
+                    };
+                    
+                    setSuspension(suspensionData);
+                    localStorage.setItem('pyphone_suspension', JSON.stringify(suspensionData));
                     setUser(userData);
                     setIsLocked(false);
                     
@@ -165,9 +192,11 @@ export const OSProvider = ({ children }) => {
                 const suspensionData = await checkSuspension(username);
                 if (suspensionData) {
                     setSuspension(suspensionData);
+                    localStorage.setItem('pyphone_suspension', JSON.stringify(suspensionData));
                     setUser(userData);
                     setIsLocked(false);
                 } else {
+                    localStorage.removeItem('pyphone_suspension');
                     setUser(userData);
                     setIsLocked(false);
                 }
@@ -205,6 +234,7 @@ export const OSProvider = ({ children }) => {
         setApps([]);
         setMinimizedApps([]);
         setSuspension(null);
+        localStorage.removeItem('pyphone_suspension');
         localStorage.setItem('pyphone_user', JSON.stringify(userData));
     };
 
@@ -216,6 +246,7 @@ export const OSProvider = ({ children }) => {
         setUser(originalAdmin);
         setTrueAdmin(null);
         setSuspension(null);
+        localStorage.removeItem('pyphone_suspension');
         sessionStorage.removeItem('true_admin');
         setApps([]);
         setMinimizedApps([]);
@@ -279,6 +310,7 @@ export const OSProvider = ({ children }) => {
         setMinimizedApps([]);
         localStorage.removeItem('pyphone_user');
         localStorage.removeItem('pyphone_remember_me');
+        localStorage.removeItem('pyphone_suspension');
     };
 
     const openApp = (appId) => {
