@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, User, Plus, X, MessageCircle, ChevronRight, Hash, Paperclip, Image as ImageIcon, File as FileIcon, Download, Loader2 } from 'lucide-react';
+import { Send, User, Plus, X, MessageCircle, ChevronRight, Hash, Paperclip, Image as ImageIcon, File as FileIcon, Download, Loader2, ChevronLeft } from 'lucide-react';
 import { useOS } from '../../context/OSContext';
 import { endpoints, API_BASE_URL } from '../../config';
 
 const MessagesApp = () => {
-    const { user } = useOS();
+    const { user, deviceType } = useOS();
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [targetUser, setTargetUser] = useState(null);
@@ -12,9 +12,11 @@ const MessagesApp = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [uploading, setUploading] = useState(false);
+    const [showChatList, setShowChatList] = useState(true);
 
     const fileInputRef = useRef(null);
     const scrollRef = useRef(null);
+    const isMobile = deviceType === 'mobile' || deviceType === 'tablet';
 
     useEffect(() => {
         if (!user?.username) return;
@@ -161,6 +163,168 @@ const MessagesApp = () => {
         );
     };
 
+    // Mobile Chat List View
+    if (isMobile && showChatList && !targetUser) {
+        return (
+            <div className="flex flex-col h-full bg-[#1c1c1e] text-white">
+                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-[#2c2c2e]/50">
+                    <span className="font-bold flex items-center gap-2 text-sm">
+                        <MessageCircle size={16} className="text-indigo-400" /> Messages
+                    </span>
+                    <button
+                        onClick={() => setIsSearching(!isSearching)}
+                        className="bg-indigo-600 p-1.5 rounded-full hover:bg-indigo-500 transition-all active:scale-90"
+                    >
+                        {isSearching ? <X size={16} /> : <Plus size={16} />}
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto no-scrollbar">
+                    {isSearching ? (
+                        <div className="p-4 space-y-4 animate-in fade-in duration-200">
+                            <div className="flex gap-2">
+                                <input
+                                    value={searchQuery}
+                                    autoFocus
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    onKeyPress={e => e.key === 'Enter' && handleSearch()}
+                                    placeholder="Search username..."
+                                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 ring-indigo-500"
+                                />
+                                <button onClick={handleSearch} className="bg-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold">Find</button>
+                            </div>
+                            <div className="space-y-1">
+                                {searchResults.length > 0 ? (
+                                    searchResults.map(u => (
+                                        <div key={u} onClick={() => { setTargetUser(u); setIsSearching(false); setShowChatList(false); }} className="p-3 hover:bg-white/5 rounded-lg cursor-pointer flex items-center justify-between group">
+                                            <span className="text-sm">@{u}</span>
+                                            <ChevronRight size={14} className="opacity-0 group-hover:opacity-50" />
+                                        </div>
+                                    ))
+                                ) : searchQuery && (
+                                    <div className="text-center text-gray-500 italic text-sm py-4">No user found</div>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-white/5">
+                            {conversations.length > 0 ? (
+                                conversations.map(u => (
+                                    <div
+                                        key={u}
+                                        onClick={() => {
+                                            setTargetUser(u);
+                                            setShowChatList(false);
+                                        }}
+                                        className="p-4 cursor-pointer hover:bg-white/5 transition-all active:bg-indigo-600/20"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${u === 'admin' ? 'bg-indigo-600 shadow-lg' : 'bg-gray-700'}`}>
+                                                {u[0].toUpperCase()}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="font-bold truncate text-sm">@{u}</span>
+                                                    {u === 'admin' && <span className="text-[7px] bg-indigo-500/30 text-indigo-300 px-1 rounded h-fit flex-shrink-0 ml-2">STAFF</span>}
+                                                </div>
+                                                <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                                                    {messages.filter(m => m.from === u || m.to === u).slice(-1)[0]?.content || 'Chat Started'}
+                                                </p>
+                                            </div>
+                                            <ChevronRight size={16} className="text-gray-600 flex-shrink-0" />
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-10 opacity-20">
+                                    <MessageCircle size={60} className="mb-4 stroke-1" />
+                                    <h3 className="text-lg font-bold uppercase tracking-widest">No Messages</h3>
+                                    <p className="text-xs mt-2">Start a conversation to begin</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // Mobile Chat View
+    if (isMobile && targetUser && !showChatList) {
+        return (
+            <div className="flex flex-col h-full bg-[#1c1c1e] text-white">
+                <div className="h-14 border-b border-white/10 flex items-center justify-between px-4 bg-[#2c2c2e]/60 backdrop-blur-xl z-20">
+                    <button
+                        onClick={() => {
+                            setTargetUser(null);
+                            setShowChatList(true);
+                        }}
+                        className="p-1.5 -m-1.5 hover:bg-white/10 rounded-lg transition-all"
+                    >
+                        <ChevronLeft size={20} className="text-indigo-400" />
+                    </button>
+                    <div className="flex-1 text-center">
+                        <p className="font-bold text-xs">@{targetUser}</p>
+                        <p className="text-[8px] text-indigo-400 uppercase tracking-widest mt-0.5">End-to-End Encrypted</p>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-black shadow-lg">
+                        {targetUser[0].toUpperCase()}
+                    </div>
+                </div>
+
+                <div ref={scrollRef} className="flex-1 p-3 overflow-y-auto flex flex-col gap-3 no-scrollbar">
+                    {activeMessages.map((msg, idx) => (
+                        <div key={idx} className={`flex ${msg.from === user?.username ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                            <div className={`p-2.5 px-3 rounded-xl max-w-[80%] text-sm shadow-md ${msg.from === user?.username ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-[#2c2c2e] text-gray-100 rounded-tl-none border border-white/10'}`}>
+                                <p className="text-sm leading-relaxed break-words">{msg.content}</p>
+                                {renderAttachment(msg)}
+                                <span className={`text-[8px] block mt-1.5 font-mono uppercase ${msg.from === user?.username ? 'text-indigo-200/50' : 'text-gray-500'}`}>{msg.timestamp}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="p-3 border-t border-white/10 bg-[#1c1c1e]/80 backdrop-blur-lg space-y-2">
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-indigo-400 transition-all active:scale-90"
+                            title="Attach File"
+                        >
+                            {uploading ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
+                        </button>
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-indigo-400 transition-all active:scale-90"
+                            title="Send Image"
+                        >
+                            <ImageIcon size={16} />
+                        </button>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            style={{ display: 'none' }}
+                            onChange={handleFileUpload}
+                        />
+                    </div>
+                    <div className="flex gap-2">
+                        <input
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                            className="flex-1 bg-[#121214] border border-white/5 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 ring-indigo-500/20 text-sm"
+                            placeholder={`Message...`}
+                        />
+                        <button onClick={() => handleSend()} className="bg-indigo-600 w-10 h-10 rounded-xl text-white hover:bg-indigo-500 transition-all shadow-lg flex items-center justify-center active:scale-95 flex-shrink-0">
+                            <Send size={16} />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Desktop View - Original layout
     return (
         <div className="flex h-full bg-[#1c1c1e] text-white">
             {/* Sidebar */}
