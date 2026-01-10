@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Check, X, Search, Users, Trash2 } from 'lucide-react';
+import { UserPlus, Check, X, Search, Users, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useOS } from '../../context/OSContext';
 import { endpoints } from '../../config';
 
 const FriendsApp = () => {
-    const { user } = useOS();
+    const { user, deviceType } = useOS();
     const [friends, setFriends] = useState([]);
     const [received, setReceived] = useState([]);
     const [sent, setSent] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [confirmRemove, setConfirmRemove] = useState(null);
+    const [view, setView] = useState('menu');
+    const [isSearching, setIsSearching] = useState(false);
+    const isMobile = deviceType === 'mobile' || deviceType === 'tablet';
 
     useEffect(() => {
         if (user?.username) {
@@ -81,6 +84,164 @@ const FriendsApp = () => {
         }
     };
 
+    // Mobile Menu View
+    if (isMobile && view === 'menu') {
+        return (
+            <div className="h-full bg-[#1c1c1e] text-white flex flex-col">
+                <div className="p-4 border-b border-white/10 flex items-center gap-2 bg-[#2c2c2e]/50">
+                    <Users size={18} className="text-indigo-400" />
+                    <span className="font-bold text-sm">Friends</span>
+                </div>
+
+                <div className="flex-1 overflow-y-auto no-scrollbar">
+                    {/* Search Button */}
+                    <button
+                        onClick={() => { setView('search'); setIsSearching(true); }}
+                        className="w-full p-4 border-b border-white/5 flex items-center justify-between hover:bg-white/5 active:bg-indigo-600/20"
+                    >
+                        <span className="text-sm flex items-center gap-2">
+                            <Search size={16} className="text-indigo-400" /> Find Users
+                        </span>
+                        <ChevronRight size={16} className="text-gray-600" />
+                    </button>
+
+                    {/* Friend Requests Section */}
+                    {received.length > 0 && (
+                        <button
+                            onClick={() => setView('requests')}
+                            className="w-full p-4 border-b border-white/5 flex items-center justify-between hover:bg-white/5 active:bg-amber-500/10"
+                        >
+                            <span className="text-sm flex items-center gap-2">
+                                <UserPlus size={16} className="text-yellow-400" /> Friend Requests
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className="bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded-full">{received.length}</span>
+                                <ChevronRight size={16} className="text-gray-600" />
+                            </div>
+                        </button>
+                    )}
+
+                    {/* Friends List Button */}
+                    <button
+                        onClick={() => setView('friends')}
+                        className="w-full p-4 border-b border-white/5 flex items-center justify-between hover:bg-white/5 active:bg-green-600/10"
+                    >
+                        <span className="text-sm flex items-center gap-2">
+                            <Users size={16} className="text-green-400" /> My Friends
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="bg-green-600 text-white text-xs font-bold px-2 py-1 rounded-full">{friends.length}</span>
+                            <ChevronRight size={16} className="text-gray-600" />
+                        </div>
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // Mobile Search View
+    if (isMobile && view === 'search') {
+        return (
+            <div className="h-full bg-[#1c1c1e] text-white flex flex-col">
+                <div className="p-4 border-b border-white/10 flex items-center gap-2 bg-[#2c2c2e]/50">
+                    <button onClick={() => setView('menu')} className="p-1.5 -m-1.5 hover:bg-white/10 rounded-lg">
+                        <ChevronLeft size={18} className="text-indigo-400" />
+                    </button>
+                    <span className="font-bold text-sm">Find Users</span>
+                </div>
+                <div className="p-4 space-y-3 flex-1 flex flex-col">
+                    <div className="flex gap-2">
+                        <input
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            onKeyPress={e => e.key === 'Enter' && handleSearch()}
+                            autoFocus
+                            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500"
+                            placeholder="Username..."
+                        />
+                        <button onClick={handleSearch} className="bg-indigo-600 px-3 py-2 rounded-lg text-xs font-bold">Search</button>
+                    </div>
+                    <div className="flex-1 space-y-2 overflow-y-auto">
+                        {searchResults.length > 0 ? (
+                            searchResults.map(u => (
+                                <div key={u} className="flex justify-between items-center bg-white/5 p-3 rounded-lg">
+                                    <span className="text-sm">{u}</span>
+                                    {friends.includes(u) ? (
+                                        <span className="text-gray-500 text-xs">Friends</span>
+                                    ) : sent.includes(u) ? (
+                                        <span className="text-gray-500 text-xs">Pending...</span>
+                                    ) : (
+                                        <button onClick={() => sendRequest(u)} className="p-1.5 bg-indigo-600 rounded-full hover:bg-indigo-500">
+                                            <UserPlus size={14} />
+                                        </button>
+                                    )}
+                                </div>
+                            ))
+                        ) : searchQuery ? (
+                            <div className="text-center text-gray-500 italic text-xs py-8">No user found</div>
+                        ) : null}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Mobile Requests View
+    if (isMobile && view === 'requests') {
+        return (
+            <div className="h-full bg-[#1c1c1e] text-white flex flex-col">
+                <div className="p-4 border-b border-white/10 flex items-center gap-2 bg-[#2c2c2e]/50">
+                    <button onClick={() => setView('menu')} className="p-1.5 -m-1.5 hover:bg-white/10 rounded-lg">
+                        <ChevronLeft size={18} className="text-indigo-400" />
+                    </button>
+                    <span className="font-bold text-sm">Friend Requests ({received.length})</span>
+                </div>
+                <div className="flex-1 p-4 space-y-2 overflow-y-auto no-scrollbar">
+                    {received.map(u => (
+                        <div key={u} className="flex justify-between items-center bg-amber-500/10 border border-amber-500/20 p-3 rounded-lg">
+                            <span className="text-sm">{u}</span>
+                            <button onClick={() => acceptRequest(u)} className="p-1.5 bg-green-600 rounded-full hover:bg-green-500">
+                                <Check size={14} />
+                            </button>
+                        </div>
+                    ))}
+                    {received.length === 0 && <p className="text-center text-gray-500 text-xs py-8">No pending requests</p>}
+                </div>
+            </div>
+        );
+    }
+
+    // Mobile Friends View
+    if (isMobile && view === 'friends') {
+        return (
+            <div className="h-full bg-[#1c1c1e] text-white flex flex-col">
+                <div className="p-4 border-b border-white/10 flex items-center gap-2 bg-[#2c2c2e]/50">
+                    <button onClick={() => setView('menu')} className="p-1.5 -m-1.5 hover:bg-white/10 rounded-lg">
+                        <ChevronLeft size={18} className="text-indigo-400" />
+                    </button>
+                    <span className="font-bold text-sm">My Friends ({friends.length})</span>
+                </div>
+                <div className="flex-1 p-4 space-y-2 overflow-y-auto no-scrollbar">
+                    {friends.map(f => (
+                        <div key={f} className="flex items-center justify-between gap-2 bg-white/5 p-3 rounded-lg">
+                            <div className="flex items-center gap-3 flex-1">
+                                <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                    {f[0].toUpperCase()}
+                                </div>
+                                <span className="text-sm font-medium">{f}</span>
+                            </div>
+                            <button onClick={() => setConfirmRemove(f)} className="p-1.5 text-red-400 hover:text-red-300">
+                                <Trash2 size={14} />
+                            </button>
+                        </div>
+                    ))}
+                    {friends.length === 0 && <p className="text-center text-gray-500 text-xs py-8">No friends yet</p>}
+                </div>
+            </div>
+        );
+    }
+
+    // Desktop View
     return (
         <div className="h-full bg-[#1c1c1e] text-white p-6 flex flex-col gap-8 overflow-y-auto">
             {/* Confirmation Dialog */}
