@@ -100,7 +100,7 @@ const LockScreen = () => {
                         {/* Reason */}
                         <div>
                             <p className="text-xs text-gray-400 uppercase tracking-widest">Suspension Reason</p>
-                            <p className="text-sm text-red-300 mt-1 italic""{suspension.reason}"</p>
+                            <p className="text-sm text-red-300 mt-1 italic">{suspension.reason}</p>
                         </div>
 
                         {/* Time Remaining */}
