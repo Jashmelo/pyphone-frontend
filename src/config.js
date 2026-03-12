@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pyphone.onrender.com';
 
 const endpoints = {
     login: `${API_BASE_URL}/api/login`,
