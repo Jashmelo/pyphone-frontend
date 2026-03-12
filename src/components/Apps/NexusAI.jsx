@@ -83,7 +83,7 @@ const NexusAI = () => {
                 <div className="bg-yellow-900/30 border-b border-yellow-600/50 px-6 py-3 flex items-center gap-3">
                     <Terminal size={16} className="text-yellow-400" />
                     <p className="text-xs text-yellow-200 font-mono">
-                        <span className="font-bold">SIMULATION MODE:</span> Gemini API key not configured. AI responses are simulated. Set GEMINI_API_KEY environment variable for real AI.
+                        <span className="font-bold">SIMULATION MODE:</span> OpenRouter API key not configured. AI responses are simulated. Set OPENROUTER_API_KEY environment variable for real AI.
                     </p>
                 </div>
             )}
