@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Code2, Play, Save, Globe, Lock, Terminal, Bot, Sparkles, Send, X, LayoutGrid, Package, Plus, Trash2 } from 'lucide-react';
+import { Code2, Play, Save, Globe, Lock, Bot, Sparkles, Send, X, LayoutGrid, Package, Plus, Trash2 } from 'lucide-react';
 import { useOS } from '../../context/OSContext';
 import { endpoints, API_BASE_URL } from '../../config';
 
@@ -24,10 +24,21 @@ const DevStudio = () => {
     const autoRunTimerRef = useRef(null);
 
     const languages = [
-        { id: 'javascript', name: 'JavaScript', ext: 'js', default: '// Write your JavaScript app here\nconsole.log("Hello from PyPhone OS!")\n\n// Example: Create a styled div\nconst container = document.createElement(\'div\')\ncontainer.style.cssText = "padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px; text-align: center;"\ncontainer.innerHTML = \'<h1>Interactive App</h1><p>Edit code and click Run</p>\'\ndocument.body.innerHTML = ""\ndocument.body.appendChild(container)' },
+        {
+            id: 'javascript', name: 'JavaScript', ext: 'js',
+            default: `// Write your JavaScript app here
+console.log("Hello from PyPhone OS!")
+
+// Example: create a styled element
+const box = document.createElement('div')
+box.style.cssText = "padding:24px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-radius:16px;text-align:center;font-family:sans-serif"
+box.innerHTML = '<h1 style="margin:0 0 8px">Interactive App</h1><p style="margin:0;opacity:.8">Edit the code and click Run</p>'
+document.body.style.margin = '0'
+document.body.appendChild(box)`
+        },
         { id: 'python', name: 'Python', ext: 'py', default: '# Simulation Mode\nprint("Hello from PyPhone OS")\nprint("Python code execution in browser is limited")\nprint("For full execution, use the backend API")' },
         { id: 'cpp', name: 'C++', ext: 'cpp', default: '// Simulation Mode\n#include <iostream>\nint main() {\n    std::cout << "PyPhone OS C++ Stack" << std::endl;\n    return 0;\n}' },
-        { id: 'html', name: 'HTML/CSS', ext: 'html', default: '<!-- Pure HTML/CSS App -->\n<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; border-radius: 20px; color: white; text-align: center;">\n  <h1>Native HTML App</h1>\n  <p>Click Run to render your design</p>\n  <button style="background: white; color: #667eea; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 20px;">Click Me</button>\n</div>' }
+        { id: 'html', name: 'HTML/CSS', ext: 'html', default: '<!-- Pure HTML/CSS App -->\n<div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:40px;border-radius:20px;color:white;text-align:center;">\n  <h1>Native HTML App</h1>\n  <p>Click Run to render your design</p>\n  <button style="background:white;color:#667eea;padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;margin-top:20px;">Click Me</button>\n</div>' }
     ];
 
     useEffect(() => {
@@ -41,11 +52,8 @@ const DevStudio = () => {
             const res = await fetch(endpoints.apps(user.username));
             const data = await res.json();
             setProjects(Array.isArray(data) ? data : []);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
+        } catch (err) { console.error(err); }
+        finally { setLoading(false); }
     };
 
     const fetchStore = async () => {
@@ -54,11 +62,8 @@ const DevStudio = () => {
             const res = await fetch(endpoints.publicApps);
             const data = await res.json();
             setStoreApps(Array.isArray(data) ? data : []);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
+        } catch (err) { console.error(err); }
+        finally { setLoading(false); }
     };
 
     const loadApp = (app) => {
@@ -85,59 +90,88 @@ const DevStudio = () => {
     };
 
     useEffect(() => {
-        if (aiScrollRef.current) {
+        if (aiScrollRef.current)
             aiScrollRef.current.scrollTop = aiScrollRef.current.scrollHeight;
-        }
     }, [aiChat]);
 
-    const buildIframeSrc = (html) => {
-        return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
-    };
+    // Wrap any HTML string into a full document data URI for the iframe
+    const toDataURI = (html) =>
+        `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 
     const runCode = () => {
         try {
             if (language === 'html') {
-                setPreviewSrc(buildIframeSrc(code));
+                // Wrap bare HTML in a full document so styles apply cleanly
+                const full = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:16px;box-sizing:border-box}</style></head><body>${code}</body></html>`;
+                setPreviewSrc(toDataURI(full));
                 setStatus('success');
+
             } else if (language === 'javascript') {
-                let output = '';
-                const customConsole = {
-                    log: (...args) => { output += args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') + '\n'; },
-                    error: (...args) => { output += 'ERROR: ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') + '\n'; },
-                    warn: (...args) => { output += 'WARN: ' + args.join(' ') + '\n'; },
-                    info: (...args) => { output += args.join(' ') + '\n'; }
-                };
-                try {
-                    // eslint-disable-next-line no-new-func
-                    const fn = new Function('console', code);
-                    fn(customConsole);
-                    const html = output
-                        ? `<div style="background:#1a1a1a;color:#0f0;font-family:'Courier New',monospace;padding:20px;white-space:pre-wrap;word-wrap:break-word;font-size:12px;line-height:1.5;min-height:100vh">${output.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`
-                        : `<div style="color:#999;padding:20px;text-align:center;font-family:monospace">Code executed (no output)</div>`;
-                    setPreviewSrc(buildIframeSrc(html));
-                    setStatus('success');
-                } catch (err) {
-                    const msg = (err.message || String(err)).replace(/</g,'&lt;').replace(/>/g,'&gt;');
-                    setPreviewSrc(buildIframeSrc(`<div style="color:#ff6b6b;padding:20px;font-family:monospace;background:#1a1a1a;border-left:4px solid #ff6b6b"><strong>Error:</strong><br/>${msg}</div>`));
-                    setStatus('error');
-                }
+                // Embed user code directly inside a full HTML document so
+                // `document`, `window`, DOM APIs all work as expected.
+                const escaped = code
+                    .replace(/\\/g, '\\\\')
+                    .replace(/`/g, '\\`')
+                    .replace(/\$/g, '\\$');
+                const full = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>body{margin:0;padding:0;background:#fff;font-family:sans-serif}</style>
+</head>
+<body>
+<script>
+(function() {
+  // Capture console output into a visible panel if body is empty after script runs
+  const _logs = [];
+  const _origLog = console.log.bind(console);
+  const _origErr = console.error.bind(console);
+  const _origWarn = console.warn.bind(console);
+  console.log = (...a) => { _origLog(...a); _logs.push({t:'log', m: a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')}); };
+  console.error = (...a) => { _origErr(...a); _logs.push({t:'err', m: 'ERROR: '+a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')}); };
+  console.warn = (...a) => { _origWarn(...a); _logs.push({t:'warn', m: 'WARN: '+a.join(' ')}); };
+
+  try {
+    ${code}
+  } catch(e) {
+    document.body.innerHTML = '<div style="color:#ff6b6b;padding:20px;font-family:monospace;background:#1a1a1a;min-height:100vh;border-left:4px solid #ff6b6b"><strong>Error:</strong><br/>'+e.message+'</div>';
+    return;
+  }
+
+  // If nothing was added to the DOM, show console output
+  if (!document.body.children.length && _logs.length) {
+    const pre = document.createElement('pre');
+    pre.style.cssText = 'background:#1a1a1a;color:#0f0;font-family:Courier New,monospace;padding:20px;margin:0;min-height:100vh;white-space:pre-wrap;word-break:break-word;font-size:13px;line-height:1.6';
+    pre.textContent = _logs.map(l=>l.m).join('\\n');
+    document.body.style.margin = '0';
+    document.body.appendChild(pre);
+  } else if (!document.body.children.length) {
+    document.body.innerHTML = '<div style="color:#999;padding:20px;text-align:center;font-family:monospace">Code executed (no output)</div>';
+  }
+})()
+<\/script>
+</body>
+</html>`;
+                setPreviewSrc(toDataURI(full));
+                setStatus('success');
+
             } else {
                 const ext = languages.find(l => l.id === language)?.ext || 'file';
-                const html = `<div style="background:#000;color:#0f0;font-family:monospace;padding:20px;min-height:100vh"><div>$ ${language} run main.${ext}</div><div style="margin-top:10px">[BUILD] Compiling kernel links...</div><div style="color:#fff;margin-top:10px">Hello from the ${language} simulation environment!</div><div style="color:#555;margin-top:20px;font-size:11px">// Note: Native execution for ${language} requires backend compilation.</div></div>`;
-                setPreviewSrc(buildIframeSrc(html));
+                const html = `<!DOCTYPE html><html><body style="background:#000;color:#0f0;font-family:monospace;padding:20px;margin:0"><p>$ ${language} run main.${ext}</p><p>[BUILD] Compiling kernel links...</p><p style="color:#fff">Hello from the ${language} simulation environment!</p><p style="color:#555;font-size:11px">// Note: Native execution for ${language} requires backend compilation.</p></body></html>`;
+                setPreviewSrc(toDataURI(html));
                 setStatus('success');
             }
         } catch (err) {
             setStatus('error');
-            const msg = (err.message || String(err)).replace(/</g,'&lt;').replace(/>/g,'&gt;');
-            setPreviewSrc(buildIframeSrc(`<div style="color:#ff6b6b;padding:20px;font-family:monospace;background:#1a1a1a;border-left:4px solid #ff6b6b"><strong>Critical Error:</strong><br/>${msg}</div>`));
+            const msg = err.message || String(err);
+            setPreviewSrc(toDataURI(`<!DOCTYPE html><html><body style="margin:0"><div style="color:#ff6b6b;padding:20px;font-family:monospace;background:#1a1a1a;min-height:100vh;border-left:4px solid #ff6b6b"><strong>Critical Error:</strong><br/>${msg}</div></body></html>`));
         }
     };
 
     useEffect(() => {
         if (autoRun && view === 'editor' && code) {
             if (autoRunTimerRef.current) clearTimeout(autoRunTimerRef.current);
-            autoRunTimerRef.current = setTimeout(() => { runCode(); }, 1000);
+            autoRunTimerRef.current = setTimeout(runCode, 1000);
         }
         return () => { if (autoRunTimerRef.current) clearTimeout(autoRunTimerRef.current); };
     }, [code, language, view, autoRun]);
@@ -271,9 +305,15 @@ const DevStudio = () => {
 
                             <div className={`flex flex-col bg-slate-900/20 transition-all ${aiOpen ? 'w-1/3 border-r border-slate-800' : 'w-1/2'}`}>
                                 <div className="bg-slate-900 px-4 py-1 text-[10px] text-slate-500 font-mono border-b border-slate-800">OUTPUT</div>
-                                <div className="flex-1 m-4 bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-800/50">
+                                <div className="flex-1 m-4 rounded-xl shadow-2xl overflow-hidden border border-slate-800/50 bg-white">
                                     {previewSrc
-                                        ? <iframe src={previewSrc} className="w-full h-full border-none" sandbox="allow-scripts" title="preview" />
+                                        ? <iframe
+                                            key={previewSrc}
+                                            src={previewSrc}
+                                            className="w-full h-full border-none"
+                                            sandbox="allow-scripts"
+                                            title="preview"
+                                          />
                                         : <div className="h-full flex items-center justify-center text-slate-700 uppercase font-black text-xs opacity-20 tracking-[1em]">Ready</div>
                                     }
                                 </div>
