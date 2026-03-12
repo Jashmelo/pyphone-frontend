@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Code2, Play, Save, Globe, Lock, Bot, Sparkles, Send, X, LayoutGrid, Package, Plus, Trash2 } from 'lucide-react';
+import { Code2, Play, Save, Globe, Lock, Bot, Sparkles, Send, X, LayoutGrid, Package, Plus, Trash2, ClipboardPaste, PlusSquare } from 'lucide-react';
 import { useOS } from '../../context/OSContext';
 import { endpoints, API_BASE_URL } from '../../config';
 
@@ -94,25 +94,16 @@ document.body.appendChild(box)`
             aiScrollRef.current.scrollTop = aiScrollRef.current.scrollHeight;
     }, [aiChat]);
 
-    // Wrap any HTML string into a full document data URI for the iframe
     const toDataURI = (html) =>
         `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 
     const runCode = () => {
         try {
             if (language === 'html') {
-                // Wrap bare HTML in a full document so styles apply cleanly
                 const full = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:16px;box-sizing:border-box}</style></head><body>${code}</body></html>`;
                 setPreviewSrc(toDataURI(full));
                 setStatus('success');
-
             } else if (language === 'javascript') {
-                // Embed user code directly inside a full HTML document so
-                // `document`, `window`, DOM APIs all work as expected.
-                const escaped = code
-                    .replace(/\\/g, '\\\\')
-                    .replace(/`/g, '\\`')
-                    .replace(/\$/g, '\\$');
                 const full = `<!DOCTYPE html>
 <html>
 <head>
@@ -122,7 +113,6 @@ document.body.appendChild(box)`
 <body>
 <script>
 (function() {
-  // Capture console output into a visible panel if body is empty after script runs
   const _logs = [];
   const _origLog = console.log.bind(console);
   const _origErr = console.error.bind(console);
@@ -130,15 +120,12 @@ document.body.appendChild(box)`
   console.log = (...a) => { _origLog(...a); _logs.push({t:'log', m: a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')}); };
   console.error = (...a) => { _origErr(...a); _logs.push({t:'err', m: 'ERROR: '+a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')}); };
   console.warn = (...a) => { _origWarn(...a); _logs.push({t:'warn', m: 'WARN: '+a.join(' ')}); };
-
   try {
     ${code}
   } catch(e) {
     document.body.innerHTML = '<div style="color:#ff6b6b;padding:20px;font-family:monospace;background:#1a1a1a;min-height:100vh;border-left:4px solid #ff6b6b"><strong>Error:</strong><br/>'+e.message+'</div>';
     return;
   }
-
-  // If nothing was added to the DOM, show console output
   if (!document.body.children.length && _logs.length) {
     const pre = document.createElement('pre');
     pre.style.cssText = 'background:#1a1a1a;color:#0f0;font-family:Courier New,monospace;padding:20px;margin:0;min-height:100vh;white-space:pre-wrap;word-break:break-word;font-size:13px;line-height:1.6';
@@ -154,7 +141,6 @@ document.body.appendChild(box)`
 </html>`;
                 setPreviewSrc(toDataURI(full));
                 setStatus('success');
-
             } else {
                 const ext = languages.find(l => l.id === language)?.ext || 'file';
                 const html = `<!DOCTYPE html><html><body style="background:#000;color:#0f0;font-family:monospace;padding:20px;margin:0"><p>$ ${language} run main.${ext}</p><p>[BUILD] Compiling kernel links...</p><p style="color:#fff">Hello from the ${language} simulation environment!</p><p style="color:#555;font-size:11px">// Note: Native execution for ${language} requires backend compilation.</p></body></html>`;
@@ -192,14 +178,19 @@ document.body.appendChild(box)`
 
     const askAI = async () => {
         if (!aiInput.trim() || aiLoading) return;
-        setAiChat(prev => [...prev, { role: 'user', content: aiInput }]);
+        const userMsg = aiInput;
+        setAiChat(prev => [...prev, { role: 'user', content: userMsg }]);
         setAiInput('');
         setAiLoading(true);
         try {
+            const systemHint = `You are the Dev Studio AI Co-Pilot inside PyPhone OS. The user is writing ${language} code. When asked to write or modify code, ALWAYS wrap your code in a fenced code block using triple backticks. This allows the user to apply it directly to the editor. Be concise.`;
             const res = await fetch(endpoints.aiStudio, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: aiInput, context: `[LANG:${language}]\n${code}` })
+                body: JSON.stringify({
+                    message: `${systemHint}\n\nUser request: ${userMsg}`,
+                    context: `[LANG:${language}]\n${code}`
+                })
             });
             const data = await res.json();
             setAiChat(prev => [...prev, { role: 'ai', content: data.response }]);
@@ -215,6 +206,24 @@ document.body.appendChild(box)`
             if (res.ok) fetchProjects();
         } catch (err) { console.error('Delete failed:', err); }
     };
+
+    // Parse message content: split into text and code block segments
+    const parseMessage = (content) => {
+        const parts = [];
+        const regex = /```(?:\w+)?\n?([\s\S]*?)```/g;
+        let last = 0;
+        let match;
+        while ((match = regex.exec(content)) !== null) {
+            if (match.index > last) parts.push({ type: 'text', value: content.slice(last, match.index) });
+            parts.push({ type: 'code', value: match[1].trim() });
+            last = match.index + match[0].length;
+        }
+        if (last < content.length) parts.push({ type: 'text', value: content.slice(last) });
+        return parts;
+    };
+
+    const applyCode = (snippet) => setCode(snippet);
+    const appendCode = (snippet) => setCode(prev => prev + '\n\n' + snippet);
 
     return (
         <div className="h-full flex bg-[#0f172a] text-slate-200 overflow-hidden">
@@ -326,18 +335,60 @@ document.body.appendChild(box)`
                                         <button onClick={() => setAiOpen(false)}><X size={16} /></button>
                                     </div>
                                     <div ref={aiScrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+                                        {aiChat.length === 0 && (
+                                            <p className="text-[10px] text-slate-600 text-center pt-4">Ask the AI to write or fix code. It will show an Apply button to paste it into the editor.</p>
+                                        )}
                                         {aiChat.map((msg, i) => (
-                                            <div key={i} className={`flex ${msg.role === 'ai' ? 'justify-start' : 'justify-end'}`}>
-                                                <div className={`p-3 rounded-2xl text-[11px] max-w-[90%] ${msg.role === 'ai' ? 'bg-indigo-900/30 text-indigo-100 border border-indigo-500/20' : 'bg-slate-800 text-white'}`}>
-                                                    {msg.content}
-                                                </div>
+                                            <div key={i} className={`flex flex-col ${msg.role === 'ai' ? 'items-start' : 'items-end'}`}>
+                                                {msg.role === 'ai' ? (
+                                                    <div className="w-full space-y-2">
+                                                        {parseMessage(msg.content).map((part, j) =>
+                                                            part.type === 'text' ? (
+                                                                <p key={j} className="text-[11px] text-indigo-100 leading-relaxed whitespace-pre-wrap">{part.value}</p>
+                                                            ) : (
+                                                                <div key={j} className="w-full rounded-xl overflow-hidden border border-indigo-500/20">
+                                                                    <div className="bg-slate-950 px-3 py-1.5 flex justify-between items-center border-b border-indigo-500/20">
+                                                                        <span className="text-[9px] text-indigo-400 font-mono font-bold uppercase tracking-widest">Generated Code</span>
+                                                                        <div className="flex gap-1">
+                                                                            <button
+                                                                                onClick={() => applyCode(part.value)}
+                                                                                title="Replace editor with this code"
+                                                                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-black transition-all active:scale-95"
+                                                                            >
+                                                                                <ClipboardPaste size={10} /> Replace
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => appendCode(part.value)}
+                                                                                title="Append to editor"
+                                                                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-[9px] font-black transition-all active:scale-95"
+                                                                            >
+                                                                                <PlusSquare size={10} /> Append
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                    <pre className="bg-slate-950/80 text-indigo-300 text-[10px] font-mono p-3 overflow-x-auto whitespace-pre-wrap break-words max-h-48">{part.value}</pre>
+                                                                </div>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="p-3 rounded-2xl text-[11px] max-w-[90%] bg-slate-800 text-white">
+                                                        {msg.content}
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                         {aiLoading && <div className="text-indigo-500 text-[10px] font-bold animate-pulse">Computing assistance...</div>}
                                     </div>
                                     <div className="p-4 border-t border-slate-800">
                                         <div className="bg-slate-950 border border-slate-800 rounded-xl p-2 flex gap-2">
-                                            <input value={aiInput} onChange={e => setAiInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && askAI()} placeholder="Ask AI..." className="flex-1 bg-transparent border-none focus:ring-0 text-xs text-white px-2" />
+                                            <input
+                                                value={aiInput}
+                                                onChange={e => setAiInput(e.target.value)}
+                                                onKeyPress={e => e.key === 'Enter' && askAI()}
+                                                placeholder="Ask AI to write or fix code..."
+                                                className="flex-1 bg-transparent border-none focus:ring-0 text-xs text-white px-2"
+                                            />
                                             <button onClick={askAI} className="bg-indigo-600 p-2 rounded-lg text-white"><Send size={14} /></button>
                                         </div>
                                     </div>
