@@ -22,15 +22,25 @@ const NexusAI = () => {
         if (!input.trim() || loading) return;
 
         const userMsg = { role: 'user', content: input };
-        setMessages(prev => [...prev, userMsg]);
+        const updatedMessages = [...messages, userMsg];
+        setMessages(updatedMessages);
         setInput('');
         setLoading(true);
 
         try {
+            // Build history: all messages except the initial AI greeting and the message we just added
+            const history = updatedMessages.slice(1, -1).map(m => ({
+                role: m.role,
+                content: m.content
+            }));
+
             const res = await fetch(endpoints.aiNexus, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: input })
+                body: JSON.stringify({
+                    message: input,
+                    history
+                })
             });
             const data = await res.json();
 

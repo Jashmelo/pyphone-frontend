@@ -185,17 +185,26 @@ const DevStudio = () => {
     const askAI = async () => {
         if (!aiInput.trim() || aiLoading) return;
         const userMsg = aiInput;
-        setAiChat(prev => [...prev, { role: 'user', content: userMsg }]);
+        const updatedChat = [...aiChat, { role: 'user', content: userMsg }];
+        setAiChat(updatedChat);
         setAiInput('');
         setAiLoading(true);
         try {
             const systemHint = 'You are the Dev Studio AI Co-Pilot inside PyPhone OS. The user is writing ' + language + ' code. When asked to write or modify code, ALWAYS wrap your code in a fenced code block using triple backticks. This allows the user to apply it directly to the editor. Be concise.';
+
+            // Build history: everything before the message we just added
+            const history = updatedChat.slice(0, -1).map(m => ({
+                role: m.role,
+                content: m.content
+            }));
+
             const res = await fetch(endpoints.aiStudio, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     message: systemHint + '\n\nUser request: ' + userMsg,
-                    context: '[LANG:' + language + ']\n' + code
+                    context: '[LANG:' + language + ']\n' + code,
+                    history
                 })
             });
             const data = await res.json();
