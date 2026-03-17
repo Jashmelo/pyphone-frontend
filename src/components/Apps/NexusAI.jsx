@@ -6,7 +6,7 @@ import { endpoints } from '../../config';
 const NexusAI = () => {
     const { user } = useOS();
     const [messages, setMessages] = useState([
-        { role: 'ai', content: "System initialized. I am NEXUS, your Kernel-level AI assistant. I search the web on every query and only state facts I can verify from live sources. How can I help you today?", sources: [], searchQuery: null }
+        { role: 'ai', content: "System initialized. I am NEXUS, your Kernel-level AI assistant. I search the web when you ask factual questions and only cite facts I can verify from live sources. How can I help you today?", sources: [], searchQuery: null }
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -118,47 +118,57 @@ const NexusAI = () => {
                                     </div>
                                 </div>
 
-                                {/* Search query badge + sources — AI messages only */}
-                                {m.role === 'ai' && m.searchQuery && (
+                                {/* Search badge + sources — AI messages only */}
+                                {m.role === 'ai' && idx > 0 && (
                                     <div className="flex flex-col gap-1">
-                                        {/* Search indicator */}
-                                        <div className="flex items-center gap-1.5 px-2 py-1 text-[9px] text-cyan-700 bg-cyan-950/30 border border-cyan-900/40 rounded-lg w-fit">
-                                            <Search size={9} />
-                                            <span className="font-mono">searched: "{m.searchQuery}"</span>
-                                        </div>
+                                        {m.searchQuery ? (
+                                            <>
+                                                {/* Search query pill */}
+                                                <div className="flex items-center gap-1.5 px-2 py-1 text-[9px] text-cyan-700 bg-cyan-950/30 border border-cyan-900/40 rounded-lg w-fit">
+                                                    <Search size={9} />
+                                                    <span className="font-mono truncate max-w-[260px]">searched: "{m.searchQuery}"</span>
+                                                </div>
 
-                                        {/* Sources toggle */}
-                                        {m.sources && m.sources.length > 0 ? (
-                                            <div>
-                                                <button
-                                                    onClick={() => toggleSources(idx)}
-                                                    className="flex items-center gap-1.5 px-2 py-1 text-[9px] text-cyan-500 bg-cyan-950/30 border border-cyan-800/40 rounded-lg hover:bg-cyan-900/30 transition-colors w-fit"
-                                                >
-                                                    <Globe size={9} />
-                                                    {m.sources.length} source{m.sources.length !== 1 ? 's' : ''}
-                                                    <span className="opacity-50">{expandedSources[idx] ? '▲' : '▼'}</span>
-                                                </button>
-                                                {expandedSources[idx] && (
-                                                    <div className="mt-1 flex flex-col gap-1 pl-1">
-                                                        {m.sources.map((s, si) => (
-                                                            <a
-                                                                key={si}
-                                                                href={s.url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="flex items-start gap-1.5 text-[9px] text-cyan-600 hover:text-cyan-400 transition-colors group"
-                                                            >
-                                                                <ExternalLink size={9} className="shrink-0 mt-0.5 group-hover:text-cyan-400" />
-                                                                <span className="truncate max-w-[260px]">{s.title || s.url}</span>
-                                                            </a>
-                                                        ))}
+                                                {/* Sources toggle */}
+                                                {m.sources && m.sources.length > 0 ? (
+                                                    <div>
+                                                        <button
+                                                            onClick={() => toggleSources(idx)}
+                                                            className="flex items-center gap-1.5 px-2 py-1 text-[9px] text-cyan-500 bg-cyan-950/30 border border-cyan-800/40 rounded-lg hover:bg-cyan-900/30 transition-colors w-fit"
+                                                        >
+                                                            <Globe size={9} />
+                                                            {m.sources.length} source{m.sources.length !== 1 ? 's' : ''}
+                                                            <span className="opacity-50">{expandedSources[idx] ? '▲' : '▼'}</span>
+                                                        </button>
+                                                        {expandedSources[idx] && (
+                                                            <div className="mt-1 flex flex-col gap-1 pl-1">
+                                                                {m.sources.map((s, si) => (
+                                                                    <a
+                                                                        key={si}
+                                                                        href={s.url}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="flex items-start gap-1.5 text-[9px] text-cyan-600 hover:text-cyan-400 transition-colors group"
+                                                                    >
+                                                                        <ExternalLink size={9} className="shrink-0 mt-0.5 group-hover:text-cyan-400" />
+                                                                        <span className="truncate max-w-[260px]">{s.title || s.url}</span>
+                                                                    </a>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5 px-2 py-1 text-[9px] text-yellow-600/70 bg-yellow-950/20 border border-yellow-900/30 rounded-lg w-fit">
+                                                        <AlertTriangle size={9} />
+                                                        <span>no sources found — answer may use general knowledge</span>
                                                     </div>
                                                 )}
-                                            </div>
+                                            </>
                                         ) : (
-                                            <div className="flex items-center gap-1.5 px-2 py-1 text-[9px] text-yellow-600/70 bg-yellow-950/20 border border-yellow-900/30 rounded-lg w-fit">
-                                                <AlertTriangle size={9} />
-                                                <span>no sources found — answer may use general knowledge</span>
+                                            /* No search was performed — conversational reply */
+                                            <div className="flex items-center gap-1.5 px-2 py-1 text-[9px] text-cyan-900 bg-cyan-950/20 border border-cyan-900/20 rounded-lg w-fit">
+                                                <Cpu size={9} />
+                                                <span>conversational — no web search needed</span>
                                             </div>
                                         )}
                                     </div>
@@ -181,7 +191,7 @@ const NexusAI = () => {
                                     <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '400ms' }} />
                                 </div>
                                 <span className="text-[9px] text-cyan-700 flex items-center gap-1">
-                                    <Globe size={9} className="animate-pulse" /> Searching the web...
+                                    <Cpu size={9} className="animate-pulse" /> Processing query...
                                 </span>
                             </div>
                         </div>
@@ -214,7 +224,7 @@ const NexusAI = () => {
                 <div className="mt-3 flex justify-between items-center text-[8px] text-cyan-900 font-bold uppercase tracking-[0.2em]">
                     <div className="flex gap-3">
                         <span className="flex items-center gap-1"><Terminal size={10} /> Encrypted Stream</span>
-                        <span className="flex items-center gap-1"><Globe size={10} /> Live Search Active</span>
+                        <span className="flex items-center gap-1"><Globe size={10} /> Smart Search</span>
                     </div>
                     <span>Source-Grounded AI</span>
                 </div>

@@ -55,7 +55,7 @@ const ChessGame = () => {
         return true;
     };
 
-    const isValidMove = (from, to, boardState, checkForCheck = true, castleData = null, epTarget = null) => {
+    const isValidMove = (from, to, boardState, checkForCheck = true, castleData = null, epTarget = null, forTurn = null) => {
         if (from.r < 0 || from.r > 7 || from.c < 0 || from.c > 7) return false;
         if (to.r < 0 || to.r > 7 || to.c < 0 || to.c > 7) return false;
 
@@ -63,7 +63,9 @@ const ChessGame = () => {
         const target = boardState[to.r][to.c];
 
         if (!piece) return false;
-        if (target && ((turn === 'W' && isWhite(target)) || (turn === 'B' && isBlack(target)))) return false;
+        // Derive moving color from the piece itself, NOT from React state `turn`
+        const movingColor = isWhite(piece) ? 'W' : 'B';
+        if (target && ((movingColor === 'W' && isWhite(target)) || (movingColor === 'B' && isBlack(target)))) return false;
         if (from.r === to.r && from.c === to.c) return false;
 
         const dr = to.r - from.r;
@@ -168,7 +170,8 @@ const ChessGame = () => {
                 }
             }
             
-            if (isInCheck(testBoard, turn)) return false;
+            // Use movingColor (derived from piece) instead of React state `turn`
+            if (isInCheck(testBoard, movingColor)) return false;
         }
 
         return true;
