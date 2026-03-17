@@ -156,21 +156,49 @@ const DevStudio = () => {
                 setStatus('success');
                 setMobileTab('output');
             } else if (language === 'python' || language === 'cpp') {
-                // Show running indicator
-                const runningHTML = makeTerminalHTML('$ ' + language + ' main.' + (language === 'cpp' ? 'cpp' : 'py') + '\n\nRunning...');
-                setPreviewSrc(toDataURI(runningHTML));
+                const ext = language === 'cpp' ? 'cpp' : 'py';
+                const header = '$ ' + language + ' main.' + ext + '\n\n';
+
+                // Show running indicator immediately
+                setPreviewSrc(toDataURI(makeTerminalHTML(header + 'Running... (first run may take ~15s to wake the server)')));
                 setMobileTab('output');
                 setStatus('saving');
 
-                const res = await fetch(endpoints.execute, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ language, code })
-                });
-                const data = await res.json();
-                const header = '$ ' + language + ' main.' + (language === 'cpp' ? 'cpp' : 'py') + '\n\n';
-                setPreviewSrc(toDataURI(makeTerminalHTML(header + (data.output || '(no output)'), data.error)));
-                setStatus(data.error ? 'error' : 'success');
+                // AbortController gives us a manual timeout with a clear error message
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 40000); // 40s — accounts for cold start
+
+                try {
+                    const res = await fetch(endpoints.execute, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ language, code }),
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+
+                    if (!res.ok) {
+                        const errText = await res.text();
+                        setPreviewSrc(toDataURI(makeTerminalHTML(header + 'Server error (' + res.status + '):\n' + errText, true)));
+                        setStatus('error');
+                        return;
+                    }
+
+                    const data = await res.json();
+                    setPreviewSrc(toDataURI(makeTerminalHTML(header + (data.output || '(no output)'), data.error)));
+                    setStatus(data.error ? 'error' : 'success');
+                } catch (fetchErr) {
+                    clearTimeout(timeoutId);
+                    if (fetchErr.name === 'AbortError') {
+                        setPreviewSrc(toDataURI(makeTerminalHTML(
+                            header + 'Timed out after 40s.\n\nThe server may be waking up from sleep — try running again in a few seconds.',
+                            true
+                        )));
+                    } else {
+                        setPreviewSrc(toDataURI(makeTerminalHTML(header + 'Network error: ' + fetchErr.message, true)));
+                    }
+                    setStatus('error');
+                }
             } else {
                 const ext = languages.find(l => l.id === language)?.ext || 'file';
                 const html = '<!DOCTYPE html><html><body style="background:#000;color:#0f0;font-family:monospace;padding:20px;margin:0"><p>$ ' + language + ' run main.' + ext + '</p><p>[BUILD] Compiling...</p><p style="color:#fff">Hello from the ' + language + ' simulation environment!</p></body></html>';
