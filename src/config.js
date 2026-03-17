@@ -23,6 +23,7 @@ const endpoints = {
     publicApps: `${API_BASE_URL}/api/apps/public`,
     userApps: (username) => `${API_BASE_URL}/api/apps/${username}`,
     aiNexus: `${API_BASE_URL}/api/ai/nexus`,
+    aiNexusImage: `${API_BASE_URL}/api/ai/nexus/image`,
     aiStudio: `${API_BASE_URL}/api/ai/studio`,
     aiStatus: `${API_BASE_URL}/api/ai/status`,
     execute: `${API_BASE_URL}/api/execute`,

@@ -1,15 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Cpu, Send, Bot, User, Terminal, Sparkles, Trash2, Globe, ExternalLink, Search, AlertTriangle } from 'lucide-react';
+import { Cpu, Send, Bot, User, Terminal, Sparkles, Trash2, Globe, ExternalLink, Search, AlertTriangle, ImageIcon } from 'lucide-react';
 import { useOS } from '../../context/OSContext';
 import { endpoints } from '../../config';
 
 const NexusAI = () => {
     const { user } = useOS();
     const [messages, setMessages] = useState([
-        { role: 'ai', content: "System initialized. I am NEXUS, your Kernel-level AI assistant. I search the web when you ask factual questions and only cite facts I can verify from live sources. How can I help you today?", sources: [], searchQuery: null }
+        {
+            role: 'ai',
+            content: "System initialized. I am NEXUS — PyPhone's kernel-level AI. I can answer questions, search the web, and generate images. How can I help?",
+            sources: [],
+            searchQuery: null,
+            imageUrl: null
+        }
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
+    const [loadingStatus, setLoadingStatus] = useState('Processing...');
     const [expandedSources, setExpandedSources] = useState({});
     const scrollRef = useRef(null);
 
@@ -17,23 +24,31 @@ const NexusAI = () => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-    }, [messages]);
+    }, [messages, loading]);
 
     const toggleSources = (idx) => {
         setExpandedSources(prev => ({ ...prev, [idx]: !prev[idx] }));
     };
 
+    // Detect image requests client-side for the loading indicator label
+    const isImageRequest = (msg) => {
+        return /\b(generate|create|make|draw|paint|render|produce|show me)\s+(a\s+|an\s+)?(image|picture|photo|illustration|artwork|art|drawing|painting|wallpaper|portrait|scene|logo)\b/i.test(msg)
+            || /\b(image|picture|photo|illustration|artwork|art|drawing|painting)\s+(of|showing|depicting|with)\b/i.test(msg)
+            || /^(draw|paint|sketch|render|generate)\b/i.test(msg);
+    };
+
     const handleSend = async () => {
         if (!input.trim() || loading) return;
 
-        const userMsg = { role: 'user', content: input, sources: [], searchQuery: null };
+        const userMsg = { role: 'user', content: input, sources: [], searchQuery: null, imageUrl: null };
         const updatedMessages = [...messages, userMsg];
         setMessages(updatedMessages);
         setInput('');
         setLoading(true);
+        setLoadingStatus(isImageRequest(input) ? 'Generating image...' : 'Processing query...');
 
         try {
-            // Build history: exclude the initial greeting and the message just added
+            // Send FULL in-session history (everything except the greeting and the just-added user msg)
             const history = updatedMessages.slice(1, -1).map(m => ({
                 role: m.role,
                 content: m.content
@@ -48,17 +63,19 @@ const NexusAI = () => {
 
             setMessages(prev => [...prev, {
                 role: 'ai',
-                content: data.response,
+                content: data.image_url ? null : data.response,
                 sources: data.sources || [],
-                searchQuery: data.search_query || null
+                searchQuery: data.search_query || null,
+                imageUrl: data.image_url || null
             }]);
         } catch (err) {
             console.error(err);
             setMessages(prev => [...prev, {
                 role: 'ai',
-                content: "ERROR: Failed to establish neural link with Nexus Core.",
+                content: 'ERROR: Failed to establish neural link with Nexus Core.',
                 sources: [],
-                searchQuery: null
+                searchQuery: null,
+                imageUrl: null
             }]);
         } finally {
             setLoading(false);
@@ -68,9 +85,10 @@ const NexusAI = () => {
     const clearChat = () => {
         setMessages([{
             role: 'ai',
-            content: "Memory buffer purged. Nexus standby.",
+            content: 'Memory buffer purged. Nexus standby.',
             sources: [],
-            searchQuery: null
+            searchQuery: null,
+            imageUrl: null
         }]);
         setExpandedSources({});
     };
@@ -85,25 +103,26 @@ const NexusAI = () => {
                     </div>
                     <div>
                         <h2 className="font-black tracking-widest text-lg">NEXUS AI</h2>
-                        <p className="text-[10px] text-cyan-600 uppercase flex items-center gap-1">
-                            <Globe size={9} /> Live Web Search &bull; Source-Grounded
+                        <p className="text-[10px] text-cyan-600 uppercase flex items-center gap-2">
+                            <Globe size={9} /> Smart Search
+                            <span className="opacity-40">·</span>
+                            <ImageIcon size={9} /> Image Gen
+                            <span className="opacity-40">·</span>
+                            <Terminal size={9} /> Session Memory
                         </p>
                     </div>
                 </div>
                 <button
                     onClick={clearChat}
                     className="p-2 hover:bg-cyan-500/10 rounded-full transition-colors text-cyan-700 hover:text-cyan-400"
-                    title="Clear Memory"
+                    title="Clear chat"
                 >
                     <Trash2 size={20} />
                 </button>
             </div>
 
             {/* Chat Area */}
-            <div
-                ref={scrollRef}
-                className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 no-scrollbar"
-            >
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 no-scrollbar">
                 {messages.map((m, idx) => (
                     <div key={idx} className={`flex ${m.role === 'ai' ? 'justify-start' : 'justify-end'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                         <div className={`max-w-[85%] flex gap-3 ${m.role === 'ai' ? 'flex-row' : 'flex-row-reverse'}`}>
@@ -111,15 +130,47 @@ const NexusAI = () => {
                                 {m.role === 'ai' ? <Bot size={18} /> : <User size={18} className="text-white" />}
                             </div>
                             <div className="flex flex-col gap-1.5 min-w-0">
-                                <div className={`p-4 rounded-2xl ${m.role === 'ai' ? 'bg-cyan-950/40 border border-cyan-500/20 text-cyan-100' : 'bg-white/5 border border-white/10 text-white'}`}>
-                                    <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
-                                    <div className="mt-2 flex items-center gap-2 opacity-30 text-[8px] uppercase tracking-tighter">
-                                        <Sparkles size={10} /> {m.role === 'ai' ? 'Nexus Response' : `@${user?.username}`}
+                                {/* Image message */}
+                                {m.imageUrl ? (
+                                    <div className="flex flex-col gap-2">
+                                        <div className="bg-cyan-950/40 border border-cyan-500/20 p-3 rounded-2xl">
+                                            <img
+                                                src={m.imageUrl}
+                                                alt="Generated image"
+                                                className="rounded-xl max-w-full w-full max-h-72 object-cover border border-cyan-800/30"
+                                                onError={e => {
+                                                    e.target.style.display = 'none';
+                                                    e.target.nextSibling.style.display = 'flex';
+                                                }}
+                                            />
+                                            <div className="hidden text-xs text-cyan-600 py-2 items-center gap-2">
+                                                <AlertTriangle size={12} /> Image failed to load
+                                            </div>
+                                            <div className="mt-2 flex items-center gap-2 opacity-30 text-[8px] uppercase tracking-tighter">
+                                                <ImageIcon size={10} /> Generated Image
+                                            </div>
+                                        </div>
+                                        <a
+                                            href={m.imageUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-1.5 px-2 py-1 text-[9px] text-cyan-600 hover:text-cyan-400 bg-cyan-950/20 border border-cyan-900/20 rounded-lg w-fit transition-colors"
+                                        >
+                                            <ExternalLink size={9} /> Open full size
+                                        </a>
                                     </div>
-                                </div>
+                                ) : (
+                                    /* Text message */
+                                    <div className={`p-4 rounded-2xl ${m.role === 'ai' ? 'bg-cyan-950/40 border border-cyan-500/20 text-cyan-100' : 'bg-white/5 border border-white/10 text-white'}`}>
+                                        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
+                                        <div className="mt-2 flex items-center gap-2 opacity-30 text-[8px] uppercase tracking-tighter">
+                                            <Sparkles size={10} /> {m.role === 'ai' ? 'Nexus Response' : `@${user?.username}`}
+                                        </div>
+                                    </div>
+                                )}
 
-                                {/* Search badge + sources — AI messages only */}
-                                {m.role === 'ai' && idx > 0 && (
+                                {/* Search badge + sources — AI messages only (not greeting) */}
+                                {m.role === 'ai' && idx > 0 && !m.imageUrl && (
                                     <div className="flex flex-col gap-1">
                                         {m.searchQuery ? (
                                             <>
@@ -129,7 +180,7 @@ const NexusAI = () => {
                                                     <span className="font-mono truncate max-w-[260px]">searched: "{m.searchQuery}"</span>
                                                 </div>
 
-                                                {/* Sources toggle */}
+                                                {/* Sources */}
                                                 {m.sources && m.sources.length > 0 ? (
                                                     <div>
                                                         <button
@@ -160,15 +211,14 @@ const NexusAI = () => {
                                                 ) : (
                                                     <div className="flex items-center gap-1.5 px-2 py-1 text-[9px] text-yellow-600/70 bg-yellow-950/20 border border-yellow-900/30 rounded-lg w-fit">
                                                         <AlertTriangle size={9} />
-                                                        <span>no sources found — answer may use general knowledge</span>
+                                                        <span>no sources found — answered from training knowledge</span>
                                                     </div>
                                                 )}
                                             </>
                                         ) : (
-                                            /* No search was performed — conversational reply */
                                             <div className="flex items-center gap-1.5 px-2 py-1 text-[9px] text-cyan-900 bg-cyan-950/20 border border-cyan-900/20 rounded-lg w-fit">
                                                 <Cpu size={9} />
-                                                <span>conversational — no web search needed</span>
+                                                <span>conversational — no search needed</span>
                                             </div>
                                         )}
                                     </div>
@@ -178,6 +228,7 @@ const NexusAI = () => {
                     </div>
                 ))}
 
+                {/* Loading indicator */}
                 {loading && (
                     <div className="flex justify-start">
                         <div className="flex items-center gap-3">
@@ -191,7 +242,7 @@ const NexusAI = () => {
                                     <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '400ms' }} />
                                 </div>
                                 <span className="text-[9px] text-cyan-700 flex items-center gap-1">
-                                    <Cpu size={9} className="animate-pulse" /> Processing query...
+                                    <Cpu size={9} className="animate-pulse" /> {loadingStatus}
                                 </span>
                             </div>
                         </div>
@@ -208,7 +259,7 @@ const NexusAI = () => {
                             value={input}
                             onChange={e => setInput(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleSend()}
-                            placeholder="Type a command or query..."
+                            placeholder="Ask a question or say 'draw a sunset'..."
                             className="flex-1 bg-transparent border-none focus:ring-0 px-4 text-cyan-400 placeholder-cyan-900 text-sm font-mono"
                         />
                         <button
@@ -223,8 +274,9 @@ const NexusAI = () => {
                 </div>
                 <div className="mt-3 flex justify-between items-center text-[8px] text-cyan-900 font-bold uppercase tracking-[0.2em]">
                     <div className="flex gap-3">
-                        <span className="flex items-center gap-1"><Terminal size={10} /> Encrypted Stream</span>
                         <span className="flex items-center gap-1"><Globe size={10} /> Smart Search</span>
+                        <span className="flex items-center gap-1"><ImageIcon size={10} /> Image Gen</span>
+                        <span className="flex items-center gap-1"><Terminal size={10} /> Session Memory</span>
                     </div>
                     <span>Source-Grounded AI</span>
                 </div>
