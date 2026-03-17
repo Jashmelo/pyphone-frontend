@@ -24,7 +24,10 @@ const endpoints = {
     userApps: (username) => `${API_BASE_URL}/api/apps/${username}`,
     aiNexus: `${API_BASE_URL}/api/ai/nexus`,
     aiStudio: `${API_BASE_URL}/api/ai/studio`,
-    aiStatus: `${API_BASE_URL}/api/ai/status`
+    aiStatus: `${API_BASE_URL}/api/ai/status`,
+    execute: `${API_BASE_URL}/api/execute`,
+    streamGenerate: `${API_BASE_URL}/api/stream/generate`,
+    apps: (username) => `${API_BASE_URL}/api/apps/${username}`
 };
 
 export { API_BASE_URL, endpoints };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useOS } from '../../context/OSContext';
-import { Lock, AlertTriangle } from 'lucide-react';
+import { Lock, AlertTriangle, UserX } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const LockScreen = () => {
@@ -12,8 +12,10 @@ const LockScreen = () => {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
-    const [remainingTime, setRemainingTime] = useState(0);
+    // Initialize to null so we show a loading state before computing real value
+    const [remainingTime, setRemainingTime] = useState(null);
     const [isMobile, setIsMobile] = useState(false);
+    const [deletedAccount, setDeletedAccount] = useState(false);
 
     // Detect if mobile/tablet
     useEffect(() => {
@@ -23,16 +25,27 @@ const LockScreen = () => {
     // Timer for suspension countdown
     useEffect(() => {
         if (!user || !suspension || !suspension.expireTime) {
+            setRemainingTime(null);
             return;
         }
 
         console.log('[LockScreen] Suspension active - starting timer');
         console.log(`[LockScreen] Expire time: ${new Date(suspension.expireTime).toISOString()}`);
 
+        // Compute immediately so there is no flash of 0/Expired
+        const computeRemaining = () => Math.max(0, suspension.expireTime - Date.now());
+        const initial = computeRemaining();
+        setRemainingTime(initial);
+        console.log(`[LockScreen] Initial remaining: ${initial}ms (${(initial/1000).toFixed(0)}s)`);
+
+        if (initial <= 0) {
+            console.log('[LockScreen] Suspension already expired on mount - logging out');
+            logout();
+            return;
+        }
+
         const interval = setInterval(() => {
-            const now = Date.now();
-            const remaining = Math.max(0, suspension.expireTime - now);
-            
+            const remaining = computeRemaining();
             setRemainingTime(remaining);
 
             if (remaining <= 0) {
@@ -42,18 +55,14 @@ const LockScreen = () => {
             }
         }, 1000);
 
-        // Initial calculation
-        const now = Date.now();
-        const initial = Math.max(0, suspension.expireTime - now);
-        setRemainingTime(initial);
-        console.log(`[LockScreen] Initial remaining: ${initial}ms (${(initial/1000).toFixed(0)}s)`);
-
         return () => clearInterval(interval);
     }, [user?.username, suspension?.expireTime, logout]);
 
     const formatRemainingTime = (ms) => {
-        // Only show expired if truly at 0 or negative
-        if (ms < 1000) return 'Expired';
+        // null means we haven't computed yet — show loading
+        if (ms === null) return 'Calculating...';
+        // Only show expired if truly at 0
+        if (ms <= 0) return 'Expired';
         
         const totalSeconds = Math.floor(ms / 1000);
         const seconds = totalSeconds % 60;
@@ -164,6 +173,51 @@ const LockScreen = () => {
         );
     }
 
+    // DELETED ACCOUNT SCREEN
+    if (deletedAccount) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen text-white z-50 relative bg-gradient-to-br from-slate-900 via-gray-900/40 to-slate-900 px-4">
+                <motion.div
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.4 }}
+                    className={`bg-slate-950/80 backdrop-blur-xl p-6 rounded-2xl border border-gray-500/50 shadow-2xl text-center ${
+                        isMobile ? 'w-full max-w-sm' : 'w-96'
+                    }`}
+                >
+                    <div className="flex justify-center mb-6">
+                        <div className="bg-gray-600/30 border border-gray-500/60 p-4 rounded-full">
+                            <UserX size={isMobile ? 40 : 48} className="text-gray-400" strokeWidth={1.5} />
+                        </div>
+                    </div>
+                    <h2 className={`font-bold text-gray-300 mb-1 ${
+                        isMobile ? 'text-2xl' : 'text-3xl'
+                    }`}>Account Not Found</h2>
+                    <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider font-semibold">Account Deleted</p>
+                    <div className="bg-gray-900/50 border border-gray-700/50 rounded-lg p-4 mb-6 text-left">
+                        <p className="text-sm text-gray-300 font-mono mb-1">@{username}</p>
+                        <p className="text-xs text-gray-500 leading-relaxed">
+                            This account has been permanently deleted by an administrator. The username and all associated data no longer exist.
+                        </p>
+                    </div>
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                            setDeletedAccount(false);
+                            setUsername('');
+                            setPassword('');
+                            setError('');
+                        }}
+                        className="w-full bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 text-white py-3 rounded-lg font-semibold transition-all duration-200 uppercase text-sm tracking-wider"
+                    >
+                        Back to Login
+                    </motion.button>
+                </motion.div>
+            </div>
+        );
+    }
+
     // NORMAL LOGIN/REGISTER SCREEN
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -175,6 +229,8 @@ const LockScreen = () => {
                 const result = await login(username, password, rememberMe);
                 if (result === 'suspended') {
                     setPassword('');
+                } else if (result === 'deleted') {
+                    setDeletedAccount(true);
                 } else if (!result) {
                     setError('Invalid username or password');
                 }

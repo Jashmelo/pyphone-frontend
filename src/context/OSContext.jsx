@@ -153,6 +153,16 @@ export const OSProvider = ({ children }) => {
             });
             const data = await response.json();
 
+            // Check for 404 (deleted account)
+            if (response.status === 404) {
+                const detail = data?.detail;
+                if (typeof detail === 'object' && detail?.error === 'Account deleted') {
+                    console.log('[login] Account deleted - 404 response');
+                    return 'deleted';
+                }
+                return false;
+            }
+
             // Check for 403 (suspended) response
             if (response.status === 403) {
                 console.log('[login] User suspended - 403 response');

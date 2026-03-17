@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Cloud, Calculator, Binary, Code, Search } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Cloud, Calculator, Binary, Code, Search, RefreshCw, Copy, CheckCheck } from 'lucide-react';
+import { endpoints } from '../../config';
 
 const CalculatorApp = () => {
     const [display, setDisplay] = useState('');
@@ -167,19 +168,175 @@ const WeatherApp = () => {
     );
 };
 
+const StreamGenApp = () => {
+    const [stream, setStream] = useState('');
+    const [query, setQuery] = useState('');
+    const [searchResult, setSearchResult] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const [length, setLength] = useState(2000);
+    const streamRef = useRef(null);
+
+    const generateStream = async () => {
+        setLoading(true);
+        setSearchResult(null);
+        try {
+            const res = await fetch(endpoints.streamGenerate, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ length })
+            });
+            const data = await res.json();
+            setStream(data.stream);
+        } catch {
+            // Fallback: generate locally if backend is unreachable
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars[Math.floor(Math.random() * chars.length)];
+            }
+            setStream(result);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const doSearch = () => {
+        if (!query.trim() || !stream) return;
+        const count = stream.split(query).length - 1;
+        const indices = [];
+        let idx = stream.indexOf(query, 0);
+        while (idx !== -1 && indices.length < 50) {
+            indices.push(idx);
+            idx = stream.indexOf(query, idx + 1);
+        }
+        setSearchResult({ query, count, indices });
+        // Scroll to first match
+        if (streamRef.current) streamRef.current.scrollTop = 0;
+    };
+
+    const copyStream = () => {
+        if (!stream) return;
+        navigator.clipboard.writeText(stream).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    };
+
+    // Highlight matches in stream display
+    const renderStream = () => {
+        if (!stream) return <span className="text-gray-600 italic">No stream generated yet. Press Generate.</span>;
+        if (!searchResult || !searchResult.query) {
+            return <span className="break-all font-mono text-[11px] leading-relaxed text-green-400">{stream}</span>;
+        }
+        // Split and highlight
+        const parts = stream.split(searchResult.query);
+        return (
+            <span className="break-all font-mono text-[11px] leading-relaxed">
+                {parts.map((part, i) => (
+                    <React.Fragment key={i}>
+                        <span className="text-green-400">{part}</span>
+                        {i < parts.length - 1 && (
+                            <span className="bg-yellow-400 text-black font-bold">{searchResult.query}</span>
+                        )}
+                    </React.Fragment>
+                ))}
+            </span>
+        );
+    };
+
+    return (
+        <div className="h-full flex flex-col bg-black text-white p-4 gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-1">
+                    <label className="text-xs text-gray-400 whitespace-nowrap">Length:</label>
+                    <select
+                        value={length}
+                        onChange={e => setLength(Number(e.target.value))}
+                        className="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-green-400 focus:outline-none"
+                    >
+                        {[500, 1000, 2000, 3000, 5000].map(l => (
+                            <option key={l} value={l}>{l} chars</option>
+                        ))}
+                    </select>
+                </div>
+                <button
+                    onClick={generateStream}
+                    disabled={loading}
+                    className="flex items-center gap-1 bg-green-700 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded text-xs font-bold transition-colors"
+                >
+                    <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+                    {loading ? 'Generating...' : 'Generate'}
+                </button>
+                <button
+                    onClick={copyStream}
+                    disabled={!stream}
+                    className="flex items-center gap-1 bg-gray-800 hover:bg-gray-700 disabled:opacity-30 px-3 py-1.5 rounded text-xs font-bold transition-colors"
+                >
+                    {copied ? <CheckCheck size={13} className="text-green-400" /> : <Copy size={13} />}
+                    {copied ? 'Copied' : 'Copy'}
+                </button>
+            </div>
+
+            {/* Search bar */}
+            <div className="flex gap-2">
+                <input
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && doSearch()}
+                    placeholder="Search sequence..."
+                    className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-green-500"
+                />
+                <button
+                    onClick={doSearch}
+                    disabled={!stream || !query.trim()}
+                    className="bg-yellow-600 hover:bg-yellow-500 disabled:opacity-30 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 transition-colors"
+                >
+                    <Search size={13} /> Search
+                </button>
+            </div>
+
+            {/* Search result badge */}
+            {searchResult && (
+                <div className="bg-yellow-900/40 border border-yellow-500/40 rounded px-3 py-1.5 text-xs">
+                    <span className="text-yellow-300 font-bold">{searchResult.count}</span>
+                    <span className="text-gray-300"> occurrence{searchResult.count !== 1 ? 's' : ''} of </span>
+                    <span className="text-yellow-300 font-mono font-bold">"{searchResult.query}"</span>
+                    {searchResult.count > 0 && (
+                        <span className="text-gray-400"> at positions: {searchResult.indices.slice(0, 5).join(', ')}{searchResult.indices.length > 5 ? '...' : ''}</span>
+                    )}
+                </div>
+            )}
+
+            {/* Stream display */}
+            <div
+                ref={streamRef}
+                className="flex-1 bg-gray-950 border border-gray-800 rounded-xl p-3 overflow-y-auto overflow-x-hidden"
+            >
+                {renderStream()}
+            </div>
+
+            <p className="text-[10px] text-gray-600 text-center">
+                {stream ? `${stream.length} chars generated` : 'Click Generate to create a random character stream'}
+            </p>
+        </div>
+    );
+};
+
 const UtilitiesApp = () => {
     const [view, setView] = useState('menu');
 
     if (view === 'calc') return <div className="h-full"><Back setView={setView} /><CalculatorApp /></div>;
     if (view === 'conv') return <div className="h-full"><Back setView={setView} /><ConverterApp /></div>;
     if (view === 'weather') return <div className="h-full"><Back setView={setView} /><WeatherApp /></div>;
+    if (view === 'stream') return <div className="h-full relative"><Back setView={setView} /><StreamGenApp /></div>;
 
     return (
         <div className="p-8 grid grid-cols-2 gap-6 h-full content-start">
             <UtilCard icon={Calculator} label="Calculator" onClick={() => setView('calc')} color="bg-orange-500" />
             <UtilCard icon={Binary} label="Converter" onClick={() => setView('conv')} color="bg-blue-500" />
             <UtilCard icon={Cloud} label="Weather" onClick={() => setView('weather')} color="bg-sky-500" />
-            <UtilCard icon={Code} label="Stream Gen" onClick={() => alert('Matrix Stream unimplemented in this view')} color="bg-green-500" />
+            <UtilCard icon={Code} label="Stream Gen" onClick={() => setView('stream')} color="bg-green-500" />
         </div>
     );
 };

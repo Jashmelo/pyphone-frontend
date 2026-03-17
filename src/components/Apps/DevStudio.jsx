@@ -137,31 +137,57 @@ const DevStudio = () => {
         '</html>'
     ].join('\n');
 
-    const runCode = () => {
+    const makeTerminalHTML = (content, isError = false) => {
+        const escaped = content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const color = isError ? '#ff6b6b' : '#0f0';
+        const borderColor = isError ? '#ff6b6b' : '#0f0';
+        return '<!DOCTYPE html><html><body style="background:#0a0a0a;color:' + color + ';font-family:Courier New,monospace;padding:20px;margin:0;min-height:100vh;border-left:4px solid ' + borderColor + '"><pre style="white-space:pre-wrap;word-break:break-word;font-size:13px;line-height:1.6;margin:0">' + escaped + '</pre></body></html>';
+    };
+
+    const runCode = async () => {
         try {
             if (language === 'html') {
                 const full = '<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:16px;box-sizing:border-box}</style></head><body>' + code + '</body></html>';
                 setPreviewSrc(toDataURI(full));
                 setStatus('success');
+                setMobileTab('output');
             } else if (language === 'javascript') {
                 setPreviewSrc(toDataURI(buildJsDoc(code)));
                 setStatus('success');
+                setMobileTab('output');
+            } else if (language === 'python' || language === 'cpp') {
+                // Show running indicator
+                const runningHTML = makeTerminalHTML('$ ' + language + ' main.' + (language === 'cpp' ? 'cpp' : 'py') + '\n\nRunning...');
+                setPreviewSrc(toDataURI(runningHTML));
+                setMobileTab('output');
+                setStatus('saving');
+
+                const res = await fetch(endpoints.execute, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ language, code })
+                });
+                const data = await res.json();
+                const header = '$ ' + language + ' main.' + (language === 'cpp' ? 'cpp' : 'py') + '\n\n';
+                setPreviewSrc(toDataURI(makeTerminalHTML(header + (data.output || '(no output)'), data.error)));
+                setStatus(data.error ? 'error' : 'success');
             } else {
                 const ext = languages.find(l => l.id === language)?.ext || 'file';
-                const html = '<!DOCTYPE html><html><body style="background:#000;color:#0f0;font-family:monospace;padding:20px;margin:0"><p>$ ' + language + ' run main.' + ext + '</p><p>[BUILD] Compiling...</p><p style="color:#fff">Hello from the ' + language + ' simulation environment!</p><p style="color:#555;font-size:11px">// Note: Native execution requires backend compilation.</p></body></html>';
+                const html = '<!DOCTYPE html><html><body style="background:#000;color:#0f0;font-family:monospace;padding:20px;margin:0"><p>$ ' + language + ' run main.' + ext + '</p><p>[BUILD] Compiling...</p><p style="color:#fff">Hello from the ' + language + ' simulation environment!</p></body></html>';
                 setPreviewSrc(toDataURI(html));
                 setStatus('success');
+                setMobileTab('output');
             }
-            setMobileTab('output');
         } catch (err) {
             setStatus('error');
-            const msg = (err.message || String(err)).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            setPreviewSrc(toDataURI('<!DOCTYPE html><html><body style="margin:0"><div style="color:#ff6b6b;padding:20px;font-family:monospace;background:#1a1a1a;min-height:100vh;border-left:4px solid #ff6b6b"><strong>Critical Error:</strong><br/>' + msg + '</div></body></html>'));
+            const msg = (err.message || String(err));
+            setPreviewSrc(toDataURI(makeTerminalHTML('Critical Error:\n' + msg, true)));
         }
     };
 
     useEffect(() => {
-        if (autoRun && view === 'editor' && code) {
+        // Auto-run only for client-side languages (html/js) to avoid spamming backend
+        if (autoRun && view === 'editor' && code && (language === 'html' || language === 'javascript')) {
             if (autoRunTimerRef.current) clearTimeout(autoRunTimerRef.current);
             autoRunTimerRef.current = setTimeout(runCode, 1000);
         }

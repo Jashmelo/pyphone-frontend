@@ -353,7 +353,7 @@ const ChessGame = () => {
 
         setBoard(newBoard);
         setWhiteCanCastle(newWhiteCastle);
-        setBlackCastle(newBlackCastle);
+        setBlackCanCastle(newBlackCastle);
         setEnPassantTarget(newEnPassant);
         setSelected(null);
         setLegalMoves([]);
@@ -383,22 +383,190 @@ const ChessGame = () => {
         checkGameStatus(newBoard, newTurn);
     };
 
-    const makeAIMove = () => {
-        const possibleMoves = [];
-        for (let r1 = 0; r1 < 8; r1++) {
-            for (let c1 = 0; c1 < 8; c1++) {
-                const piece = board[r1][c1];
-                if (piece && isBlack(piece)) {
-                    for (let r2 = 0; r2 < 8; r2++) {
-                        for (let c2 = 0; c2 < 8; c2++) {
-                            if (isValidMove({ r: r1, c: c1 }, { r: r2, c: c2 }, board)) {
-                                possibleMoves.push({ from: { r: r1, c: c1 }, to: { r: r2, c: c2 } });
-                            }
+    // --- Minimax Chess AI ---
+    const PIECE_VALUES = { 'p': 100, 'n': 320, 'b': 330, 'r': 500, 'q': 900, 'k': 20000 };
+
+    // Positional bonus tables (for black, index as-is since black is top)
+    const PAWN_TABLE = [
+        [ 0,  0,  0,  0,  0,  0,  0,  0],
+        [50, 50, 50, 50, 50, 50, 50, 50],
+        [10, 10, 20, 30, 30, 20, 10, 10],
+        [ 5,  5, 10, 25, 25, 10,  5,  5],
+        [ 0,  0,  0, 20, 20,  0,  0,  0],
+        [ 5, -5,-10,  0,  0,-10, -5,  5],
+        [ 5, 10, 10,-20,-20, 10, 10,  5],
+        [ 0,  0,  0,  0,  0,  0,  0,  0]
+    ];
+    const KNIGHT_TABLE = [
+        [-50,-40,-30,-30,-30,-30,-40,-50],
+        [-40,-20,  0,  0,  0,  0,-20,-40],
+        [-30,  0, 10, 15, 15, 10,  0,-30],
+        [-30,  5, 15, 20, 20, 15,  5,-30],
+        [-30,  0, 15, 20, 20, 15,  0,-30],
+        [-30,  5, 10, 15, 15, 10,  5,-30],
+        [-40,-20,  0,  5,  5,  0,-20,-40],
+        [-50,-40,-30,-30,-30,-30,-40,-50]
+    ];
+    const BISHOP_TABLE = [
+        [-20,-10,-10,-10,-10,-10,-10,-20],
+        [-10,  0,  0,  0,  0,  0,  0,-10],
+        [-10,  0,  5, 10, 10,  5,  0,-10],
+        [-10,  5,  5, 10, 10,  5,  5,-10],
+        [-10,  0, 10, 10, 10, 10,  0,-10],
+        [-10, 10, 10, 10, 10, 10, 10,-10],
+        [-10,  5,  0,  0,  0,  0,  5,-10],
+        [-20,-10,-10,-10,-10,-10,-10,-20]
+    ];
+    const ROOK_TABLE = [
+        [ 0,  0,  0,  0,  0,  0,  0,  0],
+        [ 5, 10, 10, 10, 10, 10, 10,  5],
+        [-5,  0,  0,  0,  0,  0,  0, -5],
+        [-5,  0,  0,  0,  0,  0,  0, -5],
+        [-5,  0,  0,  0,  0,  0,  0, -5],
+        [-5,  0,  0,  0,  0,  0,  0, -5],
+        [-5,  0,  0,  0,  0,  0,  0, -5],
+        [ 0,  0,  0,  5,  5,  0,  0,  0]
+    ];
+    const QUEEN_TABLE = [
+        [-20,-10,-10, -5, -5,-10,-10,-20],
+        [-10,  0,  0,  0,  0,  0,  0,-10],
+        [-10,  0,  5,  5,  5,  5,  0,-10],
+        [ -5,  0,  5,  5,  5,  5,  0, -5],
+        [  0,  0,  5,  5,  5,  5,  0, -5],
+        [-10,  5,  5,  5,  5,  5,  0,-10],
+        [-10,  0,  5,  0,  0,  0,  0,-10],
+        [-20,-10,-10, -5, -5,-10,-10,-20]
+    ];
+    const KING_TABLE = [
+        [-30,-40,-40,-50,-50,-40,-40,-30],
+        [-30,-40,-40,-50,-50,-40,-40,-30],
+        [-30,-40,-40,-50,-50,-40,-40,-30],
+        [-30,-40,-40,-50,-50,-40,-40,-30],
+        [-20,-30,-30,-40,-40,-30,-30,-20],
+        [-10,-20,-20,-20,-20,-20,-20,-10],
+        [ 20, 20,  0,  0,  0,  0, 20, 20],
+        [ 20, 30, 10,  0,  0, 10, 30, 20]
+    ];
+
+    const getPieceBonus = (piece, r, c) => {
+        const type = piece.toLowerCase();
+        // For white pieces, flip the row (they move up the board)
+        const row = isWhite(piece) ? 7 - r : r;
+        switch (type) {
+            case 'p': return PAWN_TABLE[row][c];
+            case 'n': return KNIGHT_TABLE[row][c];
+            case 'b': return BISHOP_TABLE[row][c];
+            case 'r': return ROOK_TABLE[row][c];
+            case 'q': return QUEEN_TABLE[row][c];
+            case 'k': return KING_TABLE[row][c];
+            default: return 0;
+        }
+    };
+
+    const evaluateBoard = (boardState) => {
+        let score = 0;
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const piece = boardState[r][c];
+                if (!piece) continue;
+                const val = (PIECE_VALUES[piece.toLowerCase()] || 0) + getPieceBonus(piece, r, c);
+                score += isBlack(piece) ? val : -val;
+            }
+        }
+        return score;
+    };
+
+    const getAllMoves = (boardState, forTurn) => {
+        const moves = [];
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const piece = boardState[r][c];
+                if (!piece) continue;
+                if (forTurn === 'W' && !isWhite(piece)) continue;
+                if (forTurn === 'B' && !isBlack(piece)) continue;
+                for (let tr = 0; tr < 8; tr++) {
+                    for (let tc = 0; tc < 8; tc++) {
+                        if (isValidMove({ r, c }, { r: tr, c: tc }, boardState)) {
+                            moves.push({ from: { r, c }, to: { r: tr, c: tc } });
                         }
                     }
                 }
             }
         }
+        // Sort: captures first for better alpha-beta pruning
+        return moves.sort((a, b) => {
+            const aCapture = boardState[a.to.r][a.to.c] ? 1 : 0;
+            const bCapture = boardState[b.to.r][b.to.c] ? 1 : 0;
+            return bCapture - aCapture;
+        });
+    };
+
+    const applyMoveToBoard = (boardState, from, to) => {
+        const newBoard = boardState.map(row => [...row]);
+        const piece = newBoard[from.r][from.c];
+        const type = piece ? piece.toLowerCase() : null;
+        // En passant capture
+        if (type === 'p' && enPassantTarget && to.r === enPassantTarget.r && to.c === enPassantTarget.c) {
+            newBoard[from.r][to.c] = null;
+        }
+        // Castling rook
+        if (type === 'k' && Math.abs(to.c - from.c) === 2) {
+            if (to.c > from.c) {
+                newBoard[from.r][5] = newBoard[from.r][7];
+                newBoard[from.r][7] = null;
+            } else {
+                newBoard[from.r][3] = newBoard[from.r][0];
+                newBoard[from.r][0] = null;
+            }
+        }
+        // Pawn promotion: always promote to queen in AI
+        if (type === 'p' && (to.r === 0 || to.r === 7)) {
+            newBoard[to.r][to.c] = isWhite(piece) ? 'Q' : 'q';
+        } else {
+            newBoard[to.r][to.c] = piece;
+        }
+        newBoard[from.r][from.c] = null;
+        return newBoard;
+    };
+
+    const minimax = (boardState, depth, alpha, beta, maximizing) => {
+        if (depth === 0) return evaluateBoard(boardState);
+
+        const currentTurn = maximizing ? 'B' : 'W';
+        const moves = getAllMoves(boardState, currentTurn);
+
+        if (moves.length === 0) {
+            if (isInCheck(boardState, currentTurn)) {
+                return maximizing ? -50000 : 50000; // Checkmate
+            }
+            return 0; // Stalemate
+        }
+
+        if (maximizing) {
+            let maxEval = -Infinity;
+            for (const move of moves) {
+                const newBoard = applyMoveToBoard(boardState, move.from, move.to);
+                const evaluation = minimax(newBoard, depth - 1, alpha, beta, false);
+                maxEval = Math.max(maxEval, evaluation);
+                alpha = Math.max(alpha, evaluation);
+                if (beta <= alpha) break;
+            }
+            return maxEval;
+        } else {
+            let minEval = Infinity;
+            for (const move of moves) {
+                const newBoard = applyMoveToBoard(boardState, move.from, move.to);
+                const evaluation = minimax(newBoard, depth - 1, alpha, beta, true);
+                minEval = Math.min(minEval, evaluation);
+                beta = Math.min(beta, evaluation);
+                if (beta <= alpha) break;
+            }
+            return minEval;
+        }
+    };
+
+    const makeAIMove = () => {
+        const possibleMoves = getAllMoves(board, 'B');
 
         if (possibleMoves.length === 0) {
             checkGameStatus(board, 'B');
@@ -407,27 +575,18 @@ const ChessGame = () => {
 
         let bestMove = possibleMoves[0];
         let bestScore = -Infinity;
+        const DEPTH = 3; // Depth 3 gives good play without being too slow
 
-        const pieceValues = { 'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 0 };
-
-        possibleMoves.forEach(move => {
-            const target = board[move.to.r][move.to.c];
-            let score = Math.random() * 5; // Small randomness
-            
-            // Prefer captures
-            if (target) {
-                score += pieceValues[target.toLowerCase()] * 10;
-            }
-            
-            // Slight preference for center control
-            const dist = Math.abs(move.to.c - 3.5) + Math.abs(move.to.r - 3.5);
-            score += (8 - dist) * 0.5;
-            
-            if (score > bestScore) {
-                bestScore = score;
+        for (const move of possibleMoves) {
+            const newBoard = applyMoveToBoard(board, move.from, move.to);
+            const score = minimax(newBoard, DEPTH - 1, -Infinity, Infinity, false);
+            // Add tiny randomness to avoid repetitive play when equal
+            const adjustedScore = score + Math.random() * 2;
+            if (adjustedScore > bestScore) {
+                bestScore = adjustedScore;
                 bestMove = move;
             }
-        });
+        }
 
         movePiece(bestMove.from, bestMove.to);
     };
