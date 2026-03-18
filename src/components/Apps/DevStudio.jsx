@@ -29,7 +29,7 @@ const DevStudio = () => {
         {
             id: 'javascript', name: 'JS', ext: 'js',
             default: [
-                '// Write your JavaScript app here',
+                '// NOTE: JavaScript execution is currently not working properly in the output panel',
                 'console.log("Hello from PyPhone OS!")',
                 '',
                 '// Example: create a styled element',
@@ -40,8 +40,8 @@ const DevStudio = () => {
                 'document.body.appendChild(box)'
             ].join('\n')
         },
-        { id: 'python', name: 'Python', ext: 'py', default: '# Simulation Mode\nprint("Hello from PyPhone OS")\nprint("Python code execution in browser is limited")\nprint("For full execution, use the backend API")' },
-        { id: 'cpp', name: 'C++', ext: 'cpp', default: '// Simulation Mode\n#include <iostream>\nint main() {\n    std::cout << "PyPhone OS C++ Stack" << std::endl;\n    return 0;\n}' },
+        { id: 'python', name: 'Python', ext: 'py', default: '# Simulation Mode\nprint("Hello from PyPhone OS")\nprint("Python code execution in browser is limited")\nprint("NOTE: Python does not currently accept user input (input() is not supported)")\nprint("For full execution, use the backend API")' },
+        { id: 'cpp', name: 'C++', ext: 'cpp', default: '// NOTE: C++ execution is currently not working in Dev Studio\n// Simulation Mode\n#include <iostream>\nint main() {\n    std::cout << "PyPhone OS C++ Stack" << std::endl;\n    return 0;\n}' },
         { id: 'html', name: 'HTML', ext: 'html', default: '<!-- Pure HTML/CSS App -->\n<div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:40px;border-radius:20px;color:white;text-align:center;">\n  <h1>Native HTML App</h1>\n  <p>Click Run to render your design</p>\n  <button style="background:white;color:#667eea;padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;margin-top:20px;">Click Me</button>\n</div>' }
     ];
 
