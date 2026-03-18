@@ -87,7 +87,7 @@ const ChessGame = () => {
                     isValid = true;
                 }
                 // Capture diagonally
-                else if (Math.abs(dc) === 1 && dr === dir && target && isBlack(target) !== isWhite(piece)) {
+                else if (Math.abs(dc) === 1 && dr === dir && target && ((isWhite(piece) && isBlack(target)) || (isBlack(piece) && isWhite(target)))) {
                     isValid = true;
                 }
                 // En passant
@@ -222,7 +222,7 @@ const ChessGame = () => {
         return false;
     };
 
-    const checkGameStatus = (newBoard, newTurn) => {
+    const checkGameStatus = (newBoard, newTurn) => {         // Check if a king has been captured         let whiteKingAlive = false;         let blackKingAlive = false;         for (let r = 0; r < 8; r++) {             for (let c = 0; c < 8; c++) {                 const p = newBoard[r][c];                 if (p === 'K') whiteKingAlive = true;                 if (p === 'k') blackKingAlive = true;             }         }         if (!whiteKingAlive) {             setGameResult('Black (AI) Wins!');             setGameOver(true);             setStatus('Black (AI) Wins!');             return true;         }         if (!blackKingAlive) {             setGameResult('You Win!');             setGameOver(true);             setStatus('You Win!');             return true;         }
         if (!hasLegalMoves(newBoard, newTurn)) {
             if (isInCheck(newBoard, newTurn)) {
                 const winner = newTurn === 'W' ? 'Black (AI) Wins!' : 'You Win!';
