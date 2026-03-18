@@ -8,7 +8,7 @@ const NexusAI = () => {
     const [messages, setMessages] = useState([
         {
             role: 'ai',
-            content: "System initialized. I am NEXUS — PyPhone's kernel-level AI. I can answer questions, search the web, and generate images. How can I help?",
+            content: "System initialized. I am NEXUS — PyPhone's kernel-level AI. I can answer questions. Note: Web search is currently experiencing issues, and image generation is currently unavailable. How can I help?",
             sources: [],
             searchQuery: null,
             imageUrl: null
@@ -104,9 +104,9 @@ const NexusAI = () => {
                     <div>
                         <h2 className="font-black tracking-widest text-lg">NEXUS AI</h2>
                         <p className="text-[10px] text-cyan-600 uppercase flex items-center gap-2">
-                            <Globe size={9} /> Smart Search
+                            <Globe size={9} /> Smart Search (Issues)
                             <span className="opacity-40">·</span>
-                            <ImageIcon size={9} /> Image Gen
+                            <ImageIcon size={9} /> Image Gen (Unavailable)
                             <span className="opacity-40">·</span>
                             <Terminal size={9} /> Session Memory
                         </p>
@@ -274,8 +274,8 @@ const NexusAI = () => {
                 </div>
                 <div className="mt-3 flex justify-between items-center text-[8px] text-cyan-900 font-bold uppercase tracking-[0.2em]">
                     <div className="flex gap-3">
-                        <span className="flex items-center gap-1"><Globe size={10} /> Smart Search</span>
-                        <span className="flex items-center gap-1"><ImageIcon size={10} /> Image Gen</span>
+                        <span className="flex items-center gap-1"><Globe size={10} /> Smart Search (Issues)</span>
+                        <span className="flex items-center gap-1"><ImageIcon size={10} /> Image Gen (Unavailable)</span>
                         <span className="flex items-center gap-1"><Terminal size={10} /> Session Memory</span>
                     </div>
                     <span>Source-Grounded AI</span>
