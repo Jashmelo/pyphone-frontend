@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const WORDS = ['PYTHON', 'GEMINI', 'REACT', 'PYPHONE', 'VITE', 'TAILWIND', 'CSS', 'JAVASCRIPT', 'FASTAPI', 'ANTIGRAVITY'];
+const WORDS = ['APPLE', 'BRIDGE', 'CANDLE', 'DANCER', 'EARTH', 'FOREST', 'GARDEN', 'HAMMER', 'ISLAND', 'JUNGLE', 'KETTLE', 'LEMON', 'MANGO', 'NURSE', 'OCEAN', 'PLANET', 'QUEEN', 'RIVER', 'SILVER', 'TIGER', 'UMBRELLA', 'VILLAGE', 'WINTER', 'YELLOW', 'ZEBRA', 'BUTTER', 'CASTLE', 'DRAGON', 'FLOWER', 'GUITAR', 'HONEY', 'JACKET', 'KITTEN', 'LADDER', 'MIRROR', 'NEEDLE', 'ORANGE', 'PEPPER', 'RABBIT', 'SCHOOL', 'TABLE', 'UNCLE', 'VIOLIN', 'WINDOW', 'BASKET', 'CAMERA', 'DESERT', 'ENGINE', 'FINGER', 'GRAPES'];
 
 const HangmanGame = () => {
     const [word, setWord] = useState('');
