@@ -3,12 +3,18 @@ import { Cpu, Send, Bot, User, Terminal, Sparkles, Trash2, Globe, ExternalLink, 
 import { useOS } from '../../context/OSContext';
 import { endpoints } from '../../config';
 
+// Strip HTML tags from backend-supplied text before rendering
+const sanitizeText = (str) => {
+    if (typeof str !== 'string') return '';
+    return str.replace(/<[^>]*>/g, '');
+};
+
 const NexusAI = () => {
     const { user } = useOS();
     const [messages, setMessages] = useState([
         {
             role: 'ai',
-            content: "System initialized. I am NEXUS — PyPhone's kernel-level AI. I can answer questions. Note: Web search is currently experiencing issues, and image generation is currently unavailable. How can I help?",
+            content: "System initialized. I am NEXUS \u2014 PyPhone's kernel-level AI. I can answer questions. Note: Web search is currently experiencing issues, and image generation is currently unavailable. How can I help?",
             sources: [],
             searchQuery: null,
             imageUrl: null
@@ -63,7 +69,7 @@ const NexusAI = () => {
 
             setMessages(prev => [...prev, {
                 role: 'ai',
-                content: data.image_url ? null : data.response,
+                content: data.image_url ? null : sanitizeText(data.response),
                 sources: data.sources || [],
                 searchQuery: data.search_query || null,
                 imageUrl: data.image_url || null
@@ -105,9 +111,9 @@ const NexusAI = () => {
                         <h2 className="font-black tracking-widest text-lg">NEXUS AI</h2>
                         <p className="text-[10px] text-cyan-600 uppercase flex items-center gap-2">
                             <Globe size={9} /> Smart Search (Issues)
-                            <span className="opacity-40">·</span>
+                            <span className="opacity-40">\u00b7</span>
                             <ImageIcon size={9} /> Image Gen (Unavailable)
-                            <span className="opacity-40">·</span>
+                            <span className="opacity-40">\u00b7</span>
                             <Terminal size={9} /> Session Memory
                         </p>
                     </div>
@@ -169,7 +175,7 @@ const NexusAI = () => {
                                     </div>
                                 )}
 
-                                {/* Search badge + sources — AI messages only (not greeting) */}
+                                {/* Search badge + sources \u2014 AI messages only (not greeting) */}
                                 {m.role === 'ai' && idx > 0 && !m.imageUrl && (
                                     <div className="flex flex-col gap-1">
                                         {m.searchQuery ? (
@@ -189,7 +195,7 @@ const NexusAI = () => {
                                                         >
                                                             <Globe size={9} />
                                                             {m.sources.length} source{m.sources.length !== 1 ? 's' : ''}
-                                                            <span className="opacity-50">{expandedSources[idx] ? '▲' : '▼'}</span>
+                                                            <span className="opacity-50">{expandedSources[idx] ? '\u25b2' : '\u25bc'}</span>
                                                         </button>
                                                         {expandedSources[idx] && (
                                                             <div className="mt-1 flex flex-col gap-1 pl-1">
@@ -211,14 +217,14 @@ const NexusAI = () => {
                                                 ) : (
                                                     <div className="flex items-center gap-1.5 px-2 py-1 text-[9px] text-yellow-600/70 bg-yellow-950/20 border border-yellow-900/30 rounded-lg w-fit">
                                                         <AlertTriangle size={9} />
-                                                        <span>no sources found — answered from training knowledge</span>
+                                                        <span>no sources found \u2014 answered from training knowledge</span>
                                                     </div>
                                                 )}
                                             </>
                                         ) : (
                                             <div className="flex items-center gap-1.5 px-2 py-1 text-[9px] text-cyan-900 bg-cyan-950/20 border border-cyan-900/20 rounded-lg w-fit">
                                                 <Cpu size={9} />
-                                                <span>conversational — no search needed</span>
+                                                <span>conversational \u2014 no search needed</span>
                                             </div>
                                         )}
                                     </div>
