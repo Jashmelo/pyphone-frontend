@@ -3,6 +3,12 @@ import { Code2, Play, Save, Globe, Lock, Bot, Sparkles, Send, X, LayoutGrid, Pac
 import { useOS } from '../../context/OSContext';
 import { endpoints, API_BASE_URL } from '../../config';
 
+// Strip HTML tags from backend-supplied text before rendering
+const sanitizeText = (str) => {
+    if (typeof str !== 'string') return '';
+    return str.replace(/<[^>]*>/g, '');
+};
+
 const DevStudio = () => {
     const { user } = useOS();
     const [view, setView] = useState('projects');
@@ -191,7 +197,7 @@ const DevStudio = () => {
                     clearTimeout(timeoutId);
                     if (fetchErr.name === 'AbortError') {
                         setPreviewSrc(toDataURI(makeTerminalHTML(
-                            header + 'Timed out after 40s.\n\nThe server may be waking up from sleep — try running again in a few seconds.',
+                            header + 'Timed out after 40s.\n\nThe server may be waking up from sleep \u2014 try running again in a few seconds.',
                             true
                         )));
                     } else {
@@ -262,7 +268,7 @@ const DevStudio = () => {
                 })
             });
             const data = await res.json();
-            setAiChat(prev => [...prev, { role: 'ai', content: data.response }]);
+            setAiChat(prev => [...prev, { role: 'ai', content: sanitizeText(data.response) }]);
         } catch (err) {
             setAiChat(prev => [...prev, { role: 'ai', content: 'AI link interrupted.' }]);
         } finally { setAiLoading(false); }
@@ -271,7 +277,7 @@ const DevStudio = () => {
     const deleteApp = async (name) => {
         if (!confirm('Delete "' + name + '"? This cannot be undone.')) return;
         try {
-            const res = await fetch(API_BASE_URL + '/api/apps/' + user.username + '/' + encodeURIComponent(name), { method: 'DELETE' });
+            const res = await fetch(API_BASE_URL + '/api/apps/' + encodeURIComponent(user.username) + '/' + encodeURIComponent(name), { method: 'DELETE' });
             if (res.ok) fetchProjects();
         } catch (err) { console.error('Delete failed:', err); }
     };
