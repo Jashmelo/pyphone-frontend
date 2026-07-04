@@ -17,6 +17,12 @@ const getDeviceType = () => {
     return 'desktop';
 };
 
+// Only persist non-sensitive user fields to localStorage
+const sanitizeForStorage = (userData) => ({
+    username: userData.username,
+    settings: userData.settings
+});
+
 export const OSProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [trueAdmin, setTrueAdmin] = useState(sessionStorage.getItem('true_admin'));
@@ -35,7 +41,8 @@ export const OSProvider = ({ children }) => {
     useEffect(() => {
         const saved = localStorage.getItem('pyphone_user');
         const rememberMe = localStorage.getItem('pyphone_remember_me') === 'true';
-        const savedSuspension = localStorage.getItem('pyphone_suspension');
+        // Suspension data moved to sessionStorage — cleared when the tab/browser closes
+        const savedSuspension = sessionStorage.getItem('pyphone_suspension');
         const savedWallpapers = localStorage.getItem('pyphone_wallpapers');
         
         // Load wallpaper settings for all users
@@ -46,7 +53,7 @@ export const OSProvider = ({ children }) => {
         if (saved && rememberMe) {
             const userData = JSON.parse(saved);
             
-            // If we have a saved suspension from localStorage, restore it
+            // If we have a saved suspension from sessionStorage, restore it
             if (savedSuspension) {
                 const suspensionData = JSON.parse(savedSuspension);
                 const now = Date.now();
@@ -56,11 +63,11 @@ export const OSProvider = ({ children }) => {
                     setSuspension(suspensionData);
                     setUser(userData);
                     setIsLocked(false);
-                    console.log('[useEffect] Restored suspension from localStorage');
+                    console.log('[useEffect] Restored suspension from sessionStorage');
                     return;
                 } else {
                     // Suspension expired
-                    localStorage.removeItem('pyphone_suspension');
+                    sessionStorage.removeItem('pyphone_suspension');
                 }
             }
             
@@ -69,12 +76,12 @@ export const OSProvider = ({ children }) => {
                 if (suspensionData) {
                     // User is suspended - show suspension screen
                     setSuspension(suspensionData);
-                    localStorage.setItem('pyphone_suspension', JSON.stringify(suspensionData));
+                    sessionStorage.setItem('pyphone_suspension', JSON.stringify(suspensionData));
                     setUser(userData);
                     setIsLocked(false);
                 } else {
                     // User is not suspended - log them in
-                    localStorage.removeItem('pyphone_suspension');
+                    sessionStorage.removeItem('pyphone_suspension');
                     setUser(userData);
                     setIsLocked(false);
                 }
@@ -82,7 +89,7 @@ export const OSProvider = ({ children }) => {
         } else if (saved) {
             // Clear saved user if remember me is not enabled
             localStorage.removeItem('pyphone_user');
-            localStorage.removeItem('pyphone_suspension');
+            sessionStorage.removeItem('pyphone_suspension');
             setIsLocked(true);
         } else {
             setIsLocked(true);
@@ -102,7 +109,7 @@ export const OSProvider = ({ children }) => {
     // Check suspension status from backend
     const checkSuspension = async (username) => {
         try {
-            const res = await fetch(`${API_BASE_URL}/api/users/${username}/suspension`);
+            const res = await fetch(`${API_BASE_URL}/api/users/${encodeURIComponent(username)}/suspension`);
             if (res.ok) {
                 const data = await res.json();
                 console.log('[checkSuspension] Response:', data);
@@ -189,11 +196,12 @@ export const OSProvider = ({ children }) => {
                     };
                     
                     setSuspension(suspensionData);
-                    localStorage.setItem('pyphone_suspension', JSON.stringify(suspensionData));
+                    // Use sessionStorage for suspension — clears when the browser/tab closes
+                    sessionStorage.setItem('pyphone_suspension', JSON.stringify(suspensionData));
                     setUser(userData);
                     setIsLocked(false);
                     
-                    localStorage.setItem('pyphone_user', JSON.stringify(userData));
+                    localStorage.setItem('pyphone_user', JSON.stringify(sanitizeForStorage(userData)));
                     localStorage.removeItem('pyphone_remember_me');
                     
                     return 'suspended';
@@ -211,16 +219,16 @@ export const OSProvider = ({ children }) => {
                 const suspensionData = await checkSuspension(username);
                 if (suspensionData) {
                     setSuspension(suspensionData);
-                    localStorage.setItem('pyphone_suspension', JSON.stringify(suspensionData));
+                    sessionStorage.setItem('pyphone_suspension', JSON.stringify(suspensionData));
                     setUser(userData);
                     setIsLocked(false);
                 } else {
-                    localStorage.removeItem('pyphone_suspension');
+                    sessionStorage.removeItem('pyphone_suspension');
                     setUser(userData);
                     setIsLocked(false);
                 }
                 
-                localStorage.setItem('pyphone_user', JSON.stringify(userData));
+                localStorage.setItem('pyphone_user', JSON.stringify(sanitizeForStorage(userData)));
                 if (rememberMe) {
                     localStorage.setItem('pyphone_remember_me', 'true');
                 } else {
@@ -262,8 +270,8 @@ export const OSProvider = ({ children }) => {
         setMinimizedApps([]);
         setSuspension(null);
         setFullscreenAppId(null);
-        localStorage.removeItem('pyphone_suspension');
-        localStorage.setItem('pyphone_user', JSON.stringify(userData));
+        sessionStorage.removeItem('pyphone_suspension');
+        localStorage.setItem('pyphone_user', JSON.stringify(sanitizeForStorage(userData)));
     };
 
     const stopImpersonation = () => {
@@ -278,17 +286,17 @@ export const OSProvider = ({ children }) => {
         setTrueAdmin(null);
         setSuspension(null);
         setFullscreenAppId(null);
-        localStorage.removeItem('pyphone_suspension');
+        sessionStorage.removeItem('pyphone_suspension');
         sessionStorage.removeItem('true_admin');
         setApps([]);
         setMinimizedApps([]);
-        localStorage.setItem('pyphone_user', JSON.stringify(originalAdmin));
+        localStorage.setItem('pyphone_user', JSON.stringify(sanitizeForStorage(originalAdmin)));
     };
 
     const deleteAccount = async () => {
         if (!user?.username) return;
         try {
-            await fetch(`${endpoints.adminUsers}/${user.username}`, { method: 'DELETE' });
+            await fetch(`${endpoints.adminUsers}/${encodeURIComponent(user.username)}`, { method: 'DELETE' });
             logout();
         } catch (err) { console.error("Deletion failed", err); }
     };
@@ -297,7 +305,7 @@ export const OSProvider = ({ children }) => {
         const updatedSettings = { ...user.settings, ...newSettings };
         const updatedUser = { ...user, settings: updatedSettings };
         setUser(updatedUser);
-        localStorage.setItem('pyphone_user', JSON.stringify(updatedUser));
+        localStorage.setItem('pyphone_user', JSON.stringify(sanitizeForStorage(updatedUser)));
 
         // Save wallpaper preference for this user
         if (newSettings.wallpaper) {
@@ -312,7 +320,7 @@ export const OSProvider = ({ children }) => {
         }
 
         try {
-            await fetch(`${API_BASE_URL}/api/users/${user.username}/settings`, {
+            await fetch(`${API_BASE_URL}/api/users/${encodeURIComponent(user.username)}/settings`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newSettings)
@@ -350,12 +358,12 @@ export const OSProvider = ({ children }) => {
         setSuspension(null);
         setFullscreenAppId(null);
         sessionStorage.removeItem('true_admin');
+        sessionStorage.removeItem('pyphone_suspension');
         setIsLocked(true);
         setApps([]);
         setMinimizedApps([]);
         localStorage.removeItem('pyphone_user');
         localStorage.removeItem('pyphone_remember_me');
-        localStorage.removeItem('pyphone_suspension');
     };
 
     const openApp = (appId) => {
